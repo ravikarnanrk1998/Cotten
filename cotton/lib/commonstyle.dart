@@ -3,9 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 Color primerycolor = Colors.green;
 Color whitecolor = Colors.white;
+Color bluecolor = Colors.blue;
 Color blackcolor = Colors.black;
 Color primerycolorshade = Colors.green.shade900;
 Color graycolorshade = Colors.grey.shade300;
+Color graydarkcolorshade = Colors.grey.shade600;
 
 TextStyle appbardashbordstyle = GoogleFonts.lobster(
   color: Colors.white,
@@ -18,7 +20,11 @@ TextStyle appbarstyle = GoogleFonts.roboto(
   fontWeight: FontWeight.w500,
   fontSize: 25,
 );
-
+TextStyle commontitelstyle = GoogleFonts.roboto(
+  color: Colors.blueGrey.shade500,
+  fontWeight: FontWeight.w500,
+  fontSize: 25,
+);
 Widget sectionTitle(BuildContext context, String title) {
   return Align(
     alignment: Alignment.centerLeft,

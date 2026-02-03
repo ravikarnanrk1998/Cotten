@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-
 import 'commonstyle.dart';
-import 'inputdata.dart';
-
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
 
@@ -12,7 +8,6 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  int _currentIndex = 0;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -34,110 +29,200 @@ class _DashboardState extends State<Dashboard> {
         ],
       ),
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            /// LOAD STATUS
-            sectionTitle(context, "Load Status",),
+      body: Container(
+        height: MediaQuery.of(context).size.height,
+        color: graycolorshade,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              sectionTitle(context, "Today Status"),
+              statusCard(
+                title: "Cybrid Cotton",
+                totalKg: "120.5 Kg",
+                highKg: "60.0 Kg",
+                mediumKg: "40.0 Kg",
+                lowKg: "20.5 Kg",
+              ),
+              const SizedBox(height: 24),
+              statusCard(
+                title: "Normal Cotton",
+                totalKg: "120.5 Kg",
+                highKg: "60.0 Kg",
+                mediumKg: "40.0 Kg",
+                lowKg: "20.5 Kg",
+              ),
 
-            Row(
-              children: [
-                _statusCard("Today Kg", "380 Kg", "₹ 210,135"),
-                const SizedBox(width: 12),
-                _statusCard("Total Kg", "12,480 Kg", "₹ 6,411,255"),
-              ],
-            ),
+              const SizedBox(height: 24),
 
-            const SizedBox(height: 24),
+               sectionTitle(context, "Current Status"),
+              statusCard(
+                title: "Cybrid Cotton",
+                totalKg: "120.5 Kg",
+                highKg: "60.0 Kg",
+                mediumKg: "40.0 Kg",
+                lowKg: "20.5 Kg",
+              ),
+              const SizedBox(height: 24),
+              statusCard(
+                title: "Normal Cotton",
+                totalKg: "120.5 Kg",
+                highKg: "60.0 Kg",
+                mediumKg: "40.0 Kg",
+                lowKg: "20.5 Kg",
+              ),
 
-            sectionTitle(context, "Total Load Status",),
+              const SizedBox(height: 24),
 
-            _tableHeader(),
-            _tableRow("Ravi", "24 Apr", "200", "150", "₹105k", "₹94k", "+10k"),
-            _tableRow("Aman", "23 Apr", "280", "200", "₹140k", "₹126k", "+14k"),
-            _tableRow(
-              "Rahul",
-              "22 Apr",
-              "320",
-              "260",
-              "₹168k",
-              "₹155k",
-              "+13k",
-            ),
-          ],
+              sectionTitle(context, "Total Load Status"),
+
+              _tableHeader(),
+              _tableRow(
+                "Ravi",
+                "24 Apr",
+                "200",
+                "150",
+                "₹105k",
+                "₹94k",
+                "+10k",
+              ),
+              _tableRow(
+                "Aman",
+                "23 Apr",
+                "280",
+                "200",
+                "₹140k",
+                "₹126k",
+                "+14k",
+              ),
+              _tableRow(
+                "Rahul",
+                "22 Apr",
+                "320",
+                "260",
+                "₹168k",
+                "₹155k",
+                "+13k",
+              ),
+              const SizedBox(height: 50),
+            ],
+          ),
         ),
       ),
 
       /// BOTTOM NAVIGATION
-      bottomNavigationBar: CurvedNavigationBar(
-        index: _currentIndex,
-        height: 65,
-        color: primerycolor,
-        backgroundColor: Colors.white,
-        buttonBackgroundColor: primerycolor,
-        animationDuration: const Duration(milliseconds: 400),
-        items: const [
-          Icon(Icons.input, size: 26, color: Colors.white),
-          Icon(Icons.table_view_outlined, size: 26, color: Colors.white),
-          Icon(Icons.analytics, size: 26, color: Colors.white),
-          Icon(Icons.local_shipping, size: 26, color: Colors.white),
-        ],
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-
-          // Optional navigation logic
-
-          switch (index) {
-            case 0:
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const InputData()),
-              );
-              break;
-            case 1:
-              // Load Send
-              break;
-            case 2:
-              // Reports
-              break;
-            case 3:
-              // Profile
-              break;
-          }
-        },
-      ),
     );
   }
 
   /// ===================== WIDGETS =====================
 
-  static Widget _statusCard(String title, String kg, String amount) {
+  static Widget statusCard({
+    required String title,
+    required String totalKg,
+    required String highKg,
+    required String mediumKg,
+    required String lowKg,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 15,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          /// HEADER
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                 
+                  SizedBox(width: 10,),
+                  Text(
+                    title,
+                    style: commontitelstyle,
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Row(
+                children: [
+                  Text(
+                    totalKg,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          /// STATUS ROW
+          Row(
+            children: [
+              _smallStatusCard(
+                label: "High",
+                value: highKg,
+                color: Colors.green,
+              ),
+              _smallStatusCard(
+                label: "Medium",
+                value: mediumKg,
+                color: Colors.orange,
+              ),
+              _smallStatusCard(
+                label: "Low",
+                value: lowKg,
+                color: Colors.blueGrey,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _smallStatusCard({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: _boxDecoration(),
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(1)),
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.yellow,
-              ),
+              label,
+              style: TextStyle(fontWeight: FontWeight.w600, color: color),
             ),
-            const SizedBox(height: 8),
-            Text(kg, style: const TextStyle(fontSize: 18, color: Colors.white)),
             const SizedBox(height: 6),
             Text(
-              amount,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
+              value,
+              style: TextStyle(
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: color,
               ),
             ),
           ],
