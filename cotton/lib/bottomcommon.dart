@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 
 import 'commonstyle.dart';
+import 'currentdata.dart';
 import 'dashboard.dart';
 import 'inputdata.dart';
+import 'previewsdata.dart';
 
 class MainContainer extends StatefulWidget {
   const MainContainer({super.key});
@@ -18,7 +20,8 @@ class _MainContainerState extends State<MainContainer> {
   final List<Widget> _pages = const [
     Dashboard(),
     InputData(),
-    Center(child: Text("Reports")),
+    CurrectData(),
+    PreviewsData(),
     Center(child: Text("Transport")),
   ];
 
@@ -40,6 +43,7 @@ class _MainContainerState extends State<MainContainer> {
         items: const [
           Icon(Icons.dashboard, color: Colors.white),
           Icon(Icons.input, color: Colors.white),
+          Icon(Icons.stacked_bar_chart, color: Colors.white),
           Icon(Icons.analytics, color: Colors.white),
           Icon(Icons.local_shipping, color: Colors.white),
         ],

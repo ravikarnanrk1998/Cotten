@@ -29,16 +29,20 @@ class _InputDataState extends State<InputData> {
   }
 
   // 🔹 LOAD DATA FROM LOCAL STORAGE
-  Future<void> loadLocalData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('today_load_list');
+Future<void> loadLocalData() async {
+  final prefs = await SharedPreferences.getInstance();
+  final data = prefs.getString('today_load_list');
 
-    if (data != null) {
-      setState(() {
-        todayList = List<Map<String, dynamic>>.from(json.decode(data));
-      });
-    }
+  if (data != null) {
+    final List<Map<String, dynamic>> loadedList =
+        List<Map<String, dynamic>>.from(json.decode(data));
+
+    setState(() {
+      todayList = loadedList.reversed.toList();
+    });
   }
+}
+
 
   // 🔹 SAVE DATA TO LOCAL STORAGE
   Future<void> saveLocalData() async {
@@ -110,7 +114,7 @@ class _InputDataState extends State<InputData> {
     double total = 0;
 
     for (var item in todayList) {
-      if (item['quality'] == quality) {
+      if (item['quality'] == quality && item['cotton'] == 'Normal Cotton') {
         total += double.tryParse(item['kg'].toString()) ?? 0;
       }
     }
@@ -165,6 +169,9 @@ String _todayDate() {
                           decoration: const InputDecoration(
                             labelText: "Cotton Type",
                             border: OutlineInputBorder(),
+                             enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(width: 2)
+                          )
                           ),
                           items: ["Cybrid Cotton", "Normal Cotton"]
                               .map(
@@ -181,6 +188,9 @@ String _todayDate() {
                           decoration: const InputDecoration(
                             labelText: "Quality Type",
                             border: OutlineInputBorder(),
+                            enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(width: 2)
+                          )
                           ),
                           items: ["High", "Medium", "Low"]
                               .map(
@@ -195,10 +205,16 @@ String _todayDate() {
 
                         TextField(
                           controller: kgController,
+                          style: inputtextstyle,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: "Enter Kg",
+                            labelStyle: inputtextstyle,
+                            suffixStyle: inputtextstyle,
                             border: OutlineInputBorder(),
+                           enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(width: 2)
+                          )
                           ),
                           onChanged: (_) => calculateAmount(),
                         ),
@@ -206,10 +222,18 @@ String _todayDate() {
 
                         TextField(
                           controller: priceController,
+                           style: inputtextstyle,
+                           
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
+                          decoration:  InputDecoration(
                             labelText: "Enter Price",
                             border: OutlineInputBorder(),
+                             labelStyle: inputtextstyle,
+                            suffixStyle: inputtextstyle,
+                            
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(width: 2)
+                          )
                           ),
                           onChanged: (_) => calculateAmount(),
                         ),
@@ -373,9 +397,10 @@ String _todayDate() {
                         child: ListTile(
                           title: Text(
                             "${item['cotton']} - ${item['quality']}",
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color:(item['cotton']=="Cybrid Cotton")?bluecolor: (item['quality']=="High")?primerycolor:(item['quality']=="Medium")?primerycolorshade:graydarkcolorshade,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                           subtitle: Padding(

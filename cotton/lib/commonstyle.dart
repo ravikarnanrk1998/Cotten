@@ -25,6 +25,10 @@ TextStyle commontitelstyle = GoogleFonts.roboto(
   fontWeight: FontWeight.w500,
   fontSize: 25,
 );
+TextStyle inputtextstyle = GoogleFonts.roboto(
+  fontWeight: FontWeight.w500,
+  fontSize: 18,
+);
 Widget sectionTitle(BuildContext context, String title) {
   return Align(
     alignment: Alignment.centerLeft,
