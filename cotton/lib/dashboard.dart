@@ -144,7 +144,7 @@ class _DashboardState extends State<Dashboard> {
                 normalTotal: "${normalTotal.toStringAsFixed(0)} Kg",
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
 
               singleStatusCard(
                 title: sectionTitle(context, "Current Status"),
@@ -219,7 +219,7 @@ class _DashboardState extends State<Dashboard> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -239,11 +239,14 @@ class _DashboardState extends State<Dashboard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               title,
-              Text("₹ $totalAmount", style: inputtextstyle),
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Text("₹ $totalAmount", style: textstyle),
+              ),
+             
             ],
           ),
-          const SizedBox(height: 16),
-
+         
           /// COLUMN TITLES
           Row(
             children: const [
@@ -264,7 +267,7 @@ class _DashboardState extends State<Dashboard> {
               ),
             ],
           ),
-          const Divider(height: 20),
+          const Divider(height: 5),
 
           /// HIGH
           _statusRow(
@@ -290,7 +293,7 @@ class _DashboardState extends State<Dashboard> {
             color: Colors.blueGrey,
           ),
 
-          const Divider(height: 24),
+          const Divider(height: 5),
 
           /// TOTAL
           _statusRow(
@@ -313,7 +316,7 @@ class _DashboardState extends State<Dashboard> {
     bool isBold = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
           SizedBox(

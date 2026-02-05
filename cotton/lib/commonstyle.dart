@@ -25,9 +25,17 @@ TextStyle commontitelstyle = GoogleFonts.roboto(
   fontWeight: FontWeight.w500,
   fontSize: 25,
 );
+TextStyle textstyle = GoogleFonts.roboto(
+  fontWeight: FontWeight.w500,
+  color: primerycolor,
+  fontSize: 18,
+);
 TextStyle inputtextstyle = GoogleFonts.roboto(
   fontWeight: FontWeight.w500,
   fontSize: 18,
+);
+TextStyle inputtextstyle2 = GoogleFonts.roboto(
+  fontWeight: FontWeight.w500,
 );
 Widget sectionTitle(BuildContext context, String title) {
   return Align(
@@ -70,7 +78,7 @@ Widget sectiontextTitle(BuildContext context, String title) {
           Text(
             title,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 15,
               fontWeight: FontWeight.bold,
               color: blackcolor,
             ),
@@ -88,17 +96,15 @@ Widget commonbutton(BuildContext context, String title) {
         borderRadius: BorderRadiusDirectional.circular(10),
         color: primerycolor,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Center(
+      child:  Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              Icon(Icons.add_task,color: whitecolor,size: 30,),
+              Icon(Icons.add_task,color: whitecolor,size: 17,),
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 25,
+                  fontSize: 20,
                   fontWeight: FontWeight.w500,
                   color: whitecolor,
                 ),
@@ -106,7 +112,7 @@ Widget commonbutton(BuildContext context, String title) {
             ],
           ),
         ),
-      ),
+      
     ),
   );
 }

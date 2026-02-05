@@ -29,20 +29,19 @@ class _InputDataState extends State<InputData> {
   }
 
   // 🔹 LOAD DATA FROM LOCAL STORAGE
-Future<void> loadLocalData() async {
-  final prefs = await SharedPreferences.getInstance();
-  final data = prefs.getString('today_load_list');
+  Future<void> loadLocalData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('today_load_list');
 
-  if (data != null) {
-    final List<Map<String, dynamic>> loadedList =
-        List<Map<String, dynamic>>.from(json.decode(data));
+    if (data != null) {
+      final List<Map<String, dynamic>> loadedList =
+          List<Map<String, dynamic>>.from(json.decode(data));
 
-    setState(() {
-      todayList = loadedList.reversed.toList();
-    });
+      setState(() {
+        todayList = loadedList.reversed.toList();
+      });
+    }
   }
-}
-
 
   // 🔹 SAVE DATA TO LOCAL STORAGE
   Future<void> saveLocalData() async {
@@ -120,12 +119,13 @@ Future<void> loadLocalData() async {
     }
     return total;
   }
-String _todayDate() {
-  final now = DateTime.now();
-  return "${now.day.toString().padLeft(2, '0')}-"
-         "${now.month.toString().padLeft(2, '0')}-"
-         "${now.year}";
-}
+
+  String _todayDate() {
+    final now = DateTime.now();
+    return "${now.day.toString().padLeft(2, '0')}-"
+        "${now.month.toString().padLeft(2, '0')}-"
+        "${now.year}";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,14 +136,22 @@ String _todayDate() {
         backgroundColor: primerycolor,
         iconTheme: IconThemeData(color: whitecolor),
         actions: [
-          Container(decoration: BoxDecoration(
-            border: Border.all(width: 2,color: whitecolor),
-            borderRadius: BorderRadiusDirectional.circular(5)
-          ), child: Padding(
-            padding: const EdgeInsets.only(top: 2.0,bottom: 2.0,left: 15,right: 15),
-            child: Text(todayList.length.toString(),style: appbarstyle,),
-          )),
-          SizedBox(width: 30,)
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(width: 2, color: whitecolor),
+              borderRadius: BorderRadiusDirectional.circular(5),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.only(
+                top: 2.0,
+                bottom: 2.0,
+                left: 15,
+                right: 15,
+              ),
+              child: Text(todayList.length.toString(), style: appbarstyle),
+            ),
+          ),
+          SizedBox(width: 30),
         ],
       ),
       body: Container(
@@ -166,12 +174,17 @@ String _todayDate() {
                       children: [
                         DropdownButtonFormField<String>(
                           value: selectedCotton,
+                          isDense: true,
                           decoration: const InputDecoration(
                             labelText: "Cotton Type",
                             border: OutlineInputBorder(),
-                             enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(width: 2)
-                          )
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(width: 2),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6, // ⭐ reduce height here
+                            ),
                           ),
                           items: ["Cybrid Cotton", "Normal Cotton"]
                               .map(
@@ -185,12 +198,17 @@ String _todayDate() {
 
                         DropdownButtonFormField<String>(
                           value: selectedQuality,
+                          isDense: true,
                           decoration: const InputDecoration(
                             labelText: "Quality Type",
                             border: OutlineInputBorder(),
                             enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(width: 2)
-                          )
+                              borderSide: BorderSide(width: 2),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6, 
+                            ),
                           ),
                           items: ["High", "Medium", "Low"]
                               .map(
@@ -206,15 +224,20 @@ String _todayDate() {
                         TextField(
                           controller: kgController,
                           style: inputtextstyle,
+
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                             labelText: "Enter Kg",
                             labelStyle: inputtextstyle,
                             suffixStyle: inputtextstyle,
                             border: OutlineInputBorder(),
-                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(width: 2)
-                          )
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(width: 2),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                           ),
                           onChanged: (_) => calculateAmount(),
                         ),
@@ -222,22 +245,25 @@ String _todayDate() {
 
                         TextField(
                           controller: priceController,
-                           style: inputtextstyle,
-                           
+                          style: inputtextstyle,
+
                           keyboardType: TextInputType.number,
-                          decoration:  InputDecoration(
+                          decoration: InputDecoration(
                             labelText: "Enter Price",
                             border: OutlineInputBorder(),
-                             labelStyle: inputtextstyle,
+                            labelStyle: inputtextstyle,
                             suffixStyle: inputtextstyle,
-                            
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(width: 2)
-                          )
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6, 
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(width: 2),
+                            ),
                           ),
                           onChanged: (_) => calculateAmount(),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
 
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -246,18 +272,18 @@ String _todayDate() {
                             Text(
                               "₹ ${totalAmount.toStringAsFixed(2)}",
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 15,
                                 color: primerycolor,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 10),
 
                         SizedBox(
-                          width: 125,
-                          height: 62,
+                          width: 100,
+                          height: 40,
                           child: GestureDetector(
                             onTap: addEntry,
                             child: commonbutton(context, "Save"),
@@ -399,7 +425,13 @@ String _todayDate() {
                             "${item['cotton']} - ${item['quality']}",
                             style: TextStyle(
                               fontSize: 15,
-                              color:(item['cotton']=="Cybrid Cotton")?bluecolor: (item['quality']=="High")?primerycolor:(item['quality']=="Medium")?primerycolorshade:graydarkcolorshade,
+                              color: (item['cotton'] == "Cybrid Cotton")
+                                  ? bluecolor
+                                  : (item['quality'] == "High")
+                                  ? primerycolor
+                                  : (item['quality'] == "Medium")
+                                  ? primerycolorshade
+                                  : graydarkcolorshade,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -429,18 +461,16 @@ String _todayDate() {
                               ),
                             ],
                           ),
-                            
                         ),
                       );
                     }, childCount: todayList.length),
                   ),
                 ),
-           const SliverToBoxAdapter(child: SizedBox(height: 60)),
+              const SliverToBoxAdapter(child: SizedBox(height: 60)),
             ],
           ),
         ),
       ),
-      
     );
   }
 }
