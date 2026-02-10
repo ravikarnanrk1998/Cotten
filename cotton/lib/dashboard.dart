@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'commonstyle.dart';
 
@@ -12,18 +13,18 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  List<Map<String, dynamic>> todayList = [];
-  double cybridHigh = 0;
-  double cybridMedium = 0;
-  double cybridLow = 0;
-  double cybridTotal = 0;
+  double totalAmount = 0;
+  double hybridHigh = 0;
+  double hybridMedium = 0;
+  double hybridLow = 0;
+  double hybridTotal = 0;
 
   double normalHigh = 0;
   double normalMedium = 0;
   double normalLow = 0;
   double normalTotal = 0;
 
-  double totalAmount = 0;
+  List<Map<String, dynamic>> savedSummaries = [];
 
   @override
   void initState() {
@@ -34,8 +35,9 @@ class _DashboardState extends State<Dashboard> {
   // 🔹 LOAD DATA FROM LOCAL STORAGE
   Future<void> loadLocalData() async {
     final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('today_load_list');
 
+    // Fetch Status data
+    final data = prefs.getString('today_load_list');
     if (data != null) {
       final List<Map<String, dynamic>> loadedList =
           List<Map<String, dynamic>>.from(json.decode(data));
@@ -43,10 +45,10 @@ class _DashboardState extends State<Dashboard> {
       final status = calculateStatus(loadedList);
 
       setState(() {
-        cybridHigh = status["cybridHigh"];
-        cybridMedium = status["cybridMedium"];
-        cybridLow = status["cybridLow"];
-        cybridTotal = status["cybridTotal"];
+        hybridHigh = status["hybridHigh"];
+        hybridMedium = status["hybridMedium"];
+        hybridLow = status["hybridLow"];
+        hybridTotal = status["hybridTotal"];
 
         normalHigh = status["normalHigh"];
         normalMedium = status["normalMedium"];
@@ -56,10 +58,28 @@ class _DashboardState extends State<Dashboard> {
         totalAmount = status["totalAmount"];
       });
     }
+
+    // Fetch Saved Summaries
+    final savedData = prefs.getString('saved_summary_list');
+    if (savedData != null) {
+      setState(() {
+        savedSummaries = List<Map<String, dynamic>>.from(
+          json.decode(savedData),
+        );
+      });
+    }
+  }
+
+  Future<void> deleteSummary(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      savedSummaries.removeAt(index);
+    });
+    await prefs.setString('saved_summary_list', json.encode(savedSummaries));
   }
 
   Map<String, dynamic> calculateStatus(List<Map<String, dynamic>> list) {
-    double cybridHigh = 0, cybridMedium = 0, cybridLow = 0;
+    double hybridHigh = 0, hybridMedium = 0, hybridLow = 0;
     double normalHigh = 0, normalMedium = 0, normalLow = 0;
     double totalAmount = 0;
 
@@ -71,11 +91,11 @@ class _DashboardState extends State<Dashboard> {
 
       totalAmount += amount;
 
-      /// CYBRID
-      if (cotton.contains("Cybrid")) {
-        if (quality == "High") cybridHigh += kg;
-        if (quality == "Medium") cybridMedium += kg;
-        if (quality == "Low") cybridLow += kg;
+      /// HYBRID
+      if (cotton.contains("Hybrid")) {
+        if (quality == "High") hybridHigh += kg;
+        if (quality == "Medium") hybridMedium += kg;
+        if (quality == "Low") hybridLow += kg;
       }
 
       /// NORMAL
@@ -87,10 +107,10 @@ class _DashboardState extends State<Dashboard> {
     }
 
     return {
-      "cybridHigh": cybridHigh,
-      "cybridMedium": cybridMedium,
-      "cybridLow": cybridLow,
-      "cybridTotal": cybridHigh + cybridMedium + cybridLow,
+      "hybridHigh": hybridHigh,
+      "hybridMedium": hybridMedium,
+      "hybridLow": hybridLow,
+      "hybridTotal": hybridHigh + hybridMedium + hybridLow,
 
       "normalHigh": normalHigh,
       "normalMedium": normalMedium,
@@ -133,10 +153,10 @@ class _DashboardState extends State<Dashboard> {
                 title: sectionTitle(context, "Today Status"),
                 totalAmount: totalAmount.toStringAsFixed(0),
 
-                cybridHigh: "${cybridHigh.toStringAsFixed(0)} Kg",
-                cybridMedium: "${cybridMedium.toStringAsFixed(0)} Kg",
-                cybridLow: "${cybridLow.toStringAsFixed(0)} Kg",
-                cybridTotal: "${cybridTotal.toStringAsFixed(0)} Kg",
+                hybridHigh: "${hybridHigh.toStringAsFixed(0)} Kg",
+                hybridMedium: "${hybridMedium.toStringAsFixed(0)} Kg",
+                hybridLow: "${hybridLow.toStringAsFixed(0)} Kg",
+                hybridTotal: "${hybridTotal.toStringAsFixed(0)} Kg",
 
                 normalHigh: "${normalHigh.toStringAsFixed(0)} Kg",
                 normalMedium: "${normalMedium.toStringAsFixed(0)} Kg",
@@ -149,10 +169,10 @@ class _DashboardState extends State<Dashboard> {
               singleStatusCard(
                 title: sectionTitle(context, "Current Status"),
                 totalAmount: "54876",
-                cybridHigh: "60 Kg",
-                cybridMedium: "40 Kg",
-                cybridLow: "20 Kg",
-                cybridTotal: "120 Kg",
+                hybridHigh: "60 Kg",
+                hybridMedium: "40 Kg",
+                hybridLow: "20 Kg",
+                hybridTotal: "120 Kg",
                 normalHigh: "30 Kg",
                 normalMedium: "40 Kg",
                 normalLow: "20 Kg",
@@ -162,35 +182,26 @@ class _DashboardState extends State<Dashboard> {
               const SizedBox(height: 24),
 
               sectionTitle(context, "Total Load Status"),
+              const SizedBox(height: 10),
 
-              _tableHeader(),
-              _tableRow(
-                "Ravi",
-                "24 Apr",
-                "200",
-                "150",
-                "₹105k",
-                "₹94k",
-                "+10k",
-              ),
-              _tableRow(
-                "Aman",
-                "23 Apr",
-                "280",
-                "200",
-                "₹140k",
-                "₹126k",
-                "+14k",
-              ),
-              _tableRow(
-                "Rahul",
-                "22 Apr",
-                "320",
-                "260",
-                "₹168k",
-                "₹155k",
-                "+13k",
-              ),
+              if (savedSummaries.isEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 30),
+                  child: Center(
+                    child: Text(
+                      "No saved summaries found.",
+                      style: TextStyle(
+                        color: graydarkcolorshade,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                ...List.generate(savedSummaries.length, (index) {
+                  final item = savedSummaries[index];
+                  return _summaryRow(index, item);
+                }),
               const SizedBox(height: 50),
             ],
           ),
@@ -204,12 +215,12 @@ class _DashboardState extends State<Dashboard> {
   /// ===================== WIDGETS =====================
   static Widget singleStatusCard({
     required Widget title,
-    // Cybrid
+    // Hybrid
     required String totalAmount,
-    required String cybridHigh,
-    required String cybridMedium,
-    required String cybridLow,
-    required String cybridTotal,
+    required String hybridHigh,
+    required String hybridMedium,
+    required String hybridLow,
+    required String hybridTotal,
 
     // Normal
     required String normalHigh,
@@ -243,17 +254,16 @@ class _DashboardState extends State<Dashboard> {
                 padding: const EdgeInsets.only(right: 10),
                 child: Text("₹ $totalAmount", style: textstyle),
               ),
-             
             ],
           ),
-         
+
           /// COLUMN TITLES
           Row(
             children: const [
               SizedBox(width: 90),
               Expanded(
                 child: Text(
-                  "Cybrid",
+                  "Hybrid",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
@@ -272,7 +282,7 @@ class _DashboardState extends State<Dashboard> {
           /// HIGH
           _statusRow(
             label: "High",
-            cybridValue: cybridHigh,
+            hybridValue: hybridHigh,
             normalValue: normalHigh,
             color: Colors.green,
           ),
@@ -280,7 +290,7 @@ class _DashboardState extends State<Dashboard> {
           /// MEDIUM
           _statusRow(
             label: "Medium",
-            cybridValue: cybridMedium,
+            hybridValue: hybridMedium,
             normalValue: normalMedium,
             color: Colors.orange,
           ),
@@ -288,7 +298,7 @@ class _DashboardState extends State<Dashboard> {
           /// LOW
           _statusRow(
             label: "Low",
-            cybridValue: cybridLow,
+            hybridValue: hybridLow,
             normalValue: normalLow,
             color: Colors.blueGrey,
           ),
@@ -298,7 +308,7 @@ class _DashboardState extends State<Dashboard> {
           /// TOTAL
           _statusRow(
             label: "Total",
-            cybridValue: cybridTotal,
+            hybridValue: hybridTotal,
             normalValue: normalTotal,
             color: Colors.blue,
             isBold: true,
@@ -310,7 +320,7 @@ class _DashboardState extends State<Dashboard> {
 
   static Widget _statusRow({
     required String label,
-    required String cybridValue,
+    required String hybridValue,
     required String normalValue,
     required Color color,
     bool isBold = false,
@@ -330,7 +340,7 @@ class _DashboardState extends State<Dashboard> {
           ),
           Expanded(
             child: Text(
-              cybridValue,
+              hybridValue,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: color,
@@ -353,48 +363,222 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  static Widget _tableHeader() {
+  Widget _summaryRow(int index, Map<String, dynamic> item) {
+    Map<String, dynamic> categories = item['categories'] ?? {};
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text("Name"),
-          Text("Date"),
-          Text("In"),
-          Text("Out"),
-          Text("Spend"),
-          Text("Return"),
-          Text("P/L"),
+      margin: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
         ],
       ),
-    );
-  }
-
-  static Widget _tableRow(
-    String n,
-    String d,
-    String i,
-    String o,
-    String s,
-    String r,
-    String p,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(n),
-          Text(d),
-          Text(i),
-          Text(o),
-          Text(s),
-          Text(r),
-          Text(p, style: TextStyle(color: primerycolor)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                item['name'] ?? "Unknown",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                  color: Colors.black87,
+                ),
+              ),
+              Text(
+                item['date'] ?? "-",
+                style: TextStyle(
+                  color: graydarkcolorshade,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 20, thickness: 1),
+
+          // Details Table Header
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Text(
+                  "Type/Quality",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Center(
+                  child: Text(
+                    "Kg",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Center(
+                  child: Text(
+                    "Price",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Container(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    "Total",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+
+          // Render each category breakdown
+          ...categories.entries
+              .where((e) {
+                var val = e.value;
+                return (val is Map) &&
+                    (double.tryParse(val['kg'].toString()) ?? 0) > 0;
+              })
+              .map((entry) {
+                String label = entry.key;
+                var data = entry.value;
+                String type = label == "hybrid" ? "Hybrid" : "Normal";
+                String quality = label == "hybrid"
+                    ? "Cotton"
+                    : entry.key.replaceFirst(
+                        entry.key[0],
+                        entry.key[0].toUpperCase(),
+                      );
+                Color color = label == "hybrid"
+                    ? bluecolor
+                    : (label == "high"
+                          ? primerycolor
+                          : (label == "medium"
+                                ? Colors.orange.shade800
+                                : graydarkcolorshade));
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              type,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: color,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              quality,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Center(
+                          child: Text(
+                            "${data['kg']}",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Center(
+                          child: Text(
+                            "₹${data['price']}",
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Container(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            "₹${NumberFormat('#,##,###').format(data['total'] ?? 0)}",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              })
+              .toList(),
+
+          const Divider(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Grand Total Amount",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    "₹${NumberFormat('#,##,###').format(item['totalAmount'] ?? 0)}",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: primerycolor,
+                      fontSize: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
     );

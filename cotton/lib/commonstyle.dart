@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 Color primerycolor = Colors.green;
+Color redcolor = Colors.red;
 Color whitecolor = Colors.white;
 Color bluecolor = Colors.blue;
 Color blackcolor = Colors.black;
@@ -32,11 +33,9 @@ TextStyle textstyle = GoogleFonts.roboto(
 );
 TextStyle inputtextstyle = GoogleFonts.roboto(
   fontWeight: FontWeight.w500,
-  fontSize: 18,
+  fontSize: 22,
 );
-TextStyle inputtextstyle2 = GoogleFonts.roboto(
-  fontWeight: FontWeight.w500,
-);
+TextStyle inputtextstyle2 = GoogleFonts.roboto(fontWeight: FontWeight.w500);
 Widget sectionTitle(BuildContext context, String title) {
   return Align(
     alignment: Alignment.centerLeft,
@@ -96,23 +95,49 @@ Widget commonbutton(BuildContext context, String title) {
         borderRadius: BorderRadiusDirectional.circular(10),
         color: primerycolor,
       ),
-      child:  Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Icon(Icons.add_task,color: whitecolor,size: 17,),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w500,
-                  color: whitecolor,
-                ),
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Icon(Icons.add_task, color: whitecolor, size: 17),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+                color: whitecolor,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      
+      ),
+    ),
+  );
+}
+
+Widget commonaddbutton(BuildContext context, String title) {
+  return SizedBox(
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadiusDirectional.circular(10),
+        color: primerycolor,
+      ),
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Icon(Icons.add, color: whitecolor, size: 17),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+                color: whitecolor,
+              ),
+            ),
+          ],
+        ),
+      ),
     ),
   );
 }

@@ -193,7 +193,7 @@ class _PreviewsDataState extends State<PreviewsData> {
                                   "${item['cotton']} - ${item['quality']}",
                                   style: TextStyle(
                                     fontSize: 15,
-                                    color: (item['cotton'] == "Cybrid Cotton")
+                                    color: (item['cotton'] == "Hybrid Cotton")
                                         ? bluecolor
                                         : (item['quality'] == "High")
                                         ? primerycolor
@@ -262,15 +262,15 @@ Widget dataCard(Map<String, dynamic> item) {
             children: [
               Row(
                 children: [
-                  Text(
-                    item["name"],
-                    style: inputtextstyle
+                  Text(item["name"], style: inputtextstyle),
+                  SizedBox(width: 5),
+                  IconButton(
+                    onPressed: () {},
+                    icon: Icon(Icons.print, color: primerycolor),
                   ),
-                  SizedBox(width: 5,),
-                  IconButton(onPressed: (){}, icon: Icon(Icons.print,color: primerycolor,))
                 ],
               ),
-              Text(item["date"], style:inputtextstyle2),
+              Text(item["date"], style: inputtextstyle2),
             ],
           ),
 
@@ -326,7 +326,14 @@ Widget _infoTile(String label, String value) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(label, style: TextStyle(fontSize: 12, color: Colors.orange.shade600,fontWeight: FontWeight.w600)),
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          color: Colors.orange.shade600,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       const SizedBox(height: 4),
       Text(
         value,

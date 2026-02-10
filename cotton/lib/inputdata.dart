@@ -20,6 +20,7 @@ class _InputDataState extends State<InputData> {
   String selectedQuality = "Medium";
 
   double totalAmount = 0;
+  double totalKg = 0;
   List<Map<String, dynamic>> todayList = [];
 
   @override
@@ -50,22 +51,32 @@ class _InputDataState extends State<InputData> {
   }
 
   void calculateAmount() {
-    final kg = double.tryParse(kgController.text) ?? 0;
     final price = double.tryParse(priceController.text) ?? 0;
 
     setState(() {
-      totalAmount = kg * price;
+      totalAmount = totalKg * price;
     });
+  }
+
+  void addKgToTotal() {
+    final entryKg = double.tryParse(kgController.text) ?? 0;
+    if (entryKg > 0) {
+      setState(() {
+        totalKg += entryKg;
+        kgController.clear();
+      });
+      calculateAmount();
+    }
   }
 
   // 🔹 ADD ENTRY → SAVE → SHOW BELOW LIST
   void addEntry() {
-    if (kgController.text.isEmpty || priceController.text.isEmpty) return;
+    if (totalKg == 0 || priceController.text.isEmpty) return;
 
     final entry = {
       "cotton": selectedCotton,
       "quality": selectedQuality,
-      "kg": kgController.text,
+      "kg": totalKg,
       "price": priceController.text,
       "amount": totalAmount,
       "time": DateFormat('dd MMM, hh:mm a').format(DateTime.now()),
@@ -76,6 +87,7 @@ class _InputDataState extends State<InputData> {
       kgController.clear();
       priceController.clear();
       totalAmount = 0;
+      totalKg = 0;
     });
 
     saveLocalData();
@@ -175,15 +187,17 @@ class _InputDataState extends State<InputData> {
                         DropdownButtonFormField<String>(
                           value: selectedCotton,
                           isDense: true,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: "Cotton Type",
+                            labelStyle: inputtextstyle,
+                            suffixStyle: inputtextstyle,
                             border: OutlineInputBorder(),
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(width: 2),
                             ),
                             contentPadding: EdgeInsets.symmetric(
                               horizontal: 12,
-                              vertical: 6, // ⭐ reduce height here
+                              vertical: 18, // ⭐ reduce height here
                             ),
                           ),
                           items: ["Cybrid Cotton", "Normal Cotton"]
@@ -199,15 +213,17 @@ class _InputDataState extends State<InputData> {
                         DropdownButtonFormField<String>(
                           value: selectedQuality,
                           isDense: true,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: "Quality Type",
+                            labelStyle: inputtextstyle,
+                            suffixStyle: inputtextstyle,
                             border: OutlineInputBorder(),
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(width: 2),
                             ),
                             contentPadding: EdgeInsets.symmetric(
                               horizontal: 12,
-                              vertical: 6, 
+                              vertical: 18,
                             ),
                           ),
                           items: ["High", "Medium", "Low"]
@@ -221,25 +237,54 @@ class _InputDataState extends State<InputData> {
                         ),
                         const SizedBox(height: 12),
 
-                        TextField(
-                          controller: kgController,
-                          style: inputtextstyle,
-
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: "Enter Kg",
-                            labelStyle: inputtextstyle,
-                            suffixStyle: inputtextstyle,
-                            border: OutlineInputBorder(),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(width: 2),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: kgController,
+                                style: inputtextstyle,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: "Enter Kg",
+                                  labelStyle: inputtextstyle,
+                                  suffixStyle: inputtextstyle,
+                                  border: OutlineInputBorder(),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(width: 2),
+                                  ),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 18,
+                                  ),
+                                ),
+                                onSubmitted: (_) => addKgToTotal(),
+                              ),
                             ),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
+                            const SizedBox(width: 10),
+                            SizedBox(
+                              width: 80,
+                              height: 45,
+                              child: GestureDetector(
+                                onTap: addKgToTotal,
+                                child: commonaddbutton(context, "Add"),
+                              ),
                             ),
-                          ),
-                          onChanged: (_) => calculateAmount(),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            sectiontextTitle(context, "Total Kg"),
+                            Text(
+                              "${totalKg.toStringAsFixed(2)} Kg",
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: bluecolor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 12),
 
@@ -255,7 +300,7 @@ class _InputDataState extends State<InputData> {
                             suffixStyle: inputtextstyle,
                             contentPadding: EdgeInsets.symmetric(
                               horizontal: 12,
-                              vertical: 6, 
+                              vertical: 18,
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(width: 2),
@@ -272,7 +317,7 @@ class _InputDataState extends State<InputData> {
                             Text(
                               "₹ ${totalAmount.toStringAsFixed(2)}",
                               style: TextStyle(
-                                fontSize: 15,
+                                fontSize: 18,
                                 color: primerycolor,
                                 fontWeight: FontWeight.bold,
                               ),

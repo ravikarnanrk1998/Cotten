@@ -5,6 +5,7 @@ import 'commonstyle.dart';
 import 'currentdata.dart';
 import 'dashboard.dart';
 import 'inputdata.dart';
+import 'loadsent.dart';
 import 'previewsdata.dart';
 
 class MainContainer extends StatefulWidget {
@@ -22,7 +23,7 @@ class _MainContainerState extends State<MainContainer> {
     InputData(),
     CurrectData(),
     PreviewsData(),
-    Center(child: Text("Transport")),
+    LoadSendData(),
   ];
 
   @override
