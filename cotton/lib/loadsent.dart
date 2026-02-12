@@ -229,7 +229,6 @@ class _LoadSendDataState extends State<LoadSendData> {
               children: [
                 _tableHeaderCell("S.N", width: 40),
                 _tableHeaderCell("Kg", isExpanded: true),
-                _tableHeaderCell("Act", width: 30),
               ],
             ),
           ),
@@ -242,7 +241,7 @@ class _LoadSendDataState extends State<LoadSendData> {
           else
             ...List.generate(items.length, (index) {
               final item = items[index];
-              final sno = items.length - index;
+              final sno = index + 1;
               return Container(
                 decoration: const BoxDecoration(
                   border: Border(top: BorderSide(color: Colors.black12)),
@@ -256,19 +255,6 @@ class _LoadSendDataState extends State<LoadSendData> {
                       color,
                       isExpanded: true,
                       isBold: true,
-                    ),
-                    SizedBox(
-                      width: 30,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        icon: const Icon(
-                          Icons.delete,
-                          color: Colors.red,
-                          size: 16,
-                        ),
-                        onPressed: () => deleteEntry(item['id']),
-                      ),
                     ),
                   ],
                 ),

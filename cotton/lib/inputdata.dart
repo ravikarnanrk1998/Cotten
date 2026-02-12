@@ -91,6 +91,40 @@ class _InputDataState extends State<InputData> {
     });
 
     saveLocalData();
+    updateCurrentStatus(entry);
+  }
+
+  Future<void> updateCurrentStatus(Map<String, dynamic> entry) async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('current_status_data');
+    Map<String, dynamic> status = data != null ? json.decode(data) : {};
+
+    double kg = (entry["kg"] ?? 0).toDouble();
+    double amount = (entry["amount"] ?? 0).toDouble();
+    String cotton = entry["cotton"];
+    String quality = entry["quality"];
+
+    status["totalAmount"] = (status["totalAmount"] ?? 0) + amount;
+
+    if (cotton.contains("Hybrid")) {
+      status["hybridTotal"] = (status["hybridTotal"] ?? 0) + kg;
+      if (quality == "High")
+        status["hybridHigh"] = (status["hybridHigh"] ?? 0) + kg;
+      if (quality == "Medium")
+        status["hybridMedium"] = (status["hybridMedium"] ?? 0) + kg;
+      if (quality == "Low")
+        status["hybridLow"] = (status["hybridLow"] ?? 0) + kg;
+    } else if (cotton.contains("Normal")) {
+      status["normalTotal"] = (status["normalTotal"] ?? 0) + kg;
+      if (quality == "High")
+        status["normalHigh"] = (status["normalHigh"] ?? 0) + kg;
+      if (quality == "Medium")
+        status["normalMedium"] = (status["normalMedium"] ?? 0) + kg;
+      if (quality == "Low")
+        status["normalLow"] = (status["normalLow"] ?? 0) + kg;
+    }
+
+    await prefs.setString('current_status_data', json.encode(status));
   }
 
   // 🔹 DELETE ENTRY
@@ -110,11 +144,11 @@ class _InputDataState extends State<InputData> {
     return total;
   }
 
-  double totalCybridCottonQuality() {
+  double totalHybridCottonQuality() {
     double total = 0;
 
     for (var item in todayList) {
-      if (item['cotton'] == 'Cybrid Cotton') {
+      if (item['cotton'].contains('Hybrid')) {
         total += double.tryParse(item['kg'].toString()) ?? 0;
       }
     }
@@ -200,7 +234,7 @@ class _InputDataState extends State<InputData> {
                               vertical: 18, // ⭐ reduce height here
                             ),
                           ),
-                          items: ["Cybrid Cotton", "Normal Cotton"]
+                          items: ["Hybrid Cotton", "Normal Cotton"]
                               .map(
                                 (e) =>
                                     DropdownMenuItem(value: e, child: Text(e)),
@@ -385,9 +419,9 @@ class _InputDataState extends State<InputData> {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    /// LEFT: Cybrid Cotton Total
+                                    /// LEFT: Hybrid Cotton Total
                                     Text(
-                                      "Cybrid Cotton : ${totalCybridCottonQuality().toStringAsFixed(1)} Kg",
+                                      "Hybrid Cotton : ${totalHybridCottonQuality().toStringAsFixed(1)} Kg",
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -470,7 +504,7 @@ class _InputDataState extends State<InputData> {
                             "${item['cotton']} - ${item['quality']}",
                             style: TextStyle(
                               fontSize: 15,
-                              color: (item['cotton'] == "Cybrid Cotton")
+                              color: (item['cotton'] == "Hybrid Cotton")
                                   ? bluecolor
                                   : (item['quality'] == "High")
                                   ? primerycolor

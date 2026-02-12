@@ -29,14 +29,33 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
   final TextEditingController mediumPriceController = TextEditingController();
   final TextEditingController highPriceController = TextEditingController();
 
-  double get hybridTotal =>
-      widget.hybridKg * (double.tryParse(hybridPriceController.text) ?? 0);
-  double get lowTotal =>
-      widget.lowKg * (double.tryParse(lowPriceController.text) ?? 0);
-  double get mediumTotal =>
-      widget.mediumKg * (double.tryParse(mediumPriceController.text) ?? 0);
-  double get highTotal =>
-      widget.highKg * (double.tryParse(highPriceController.text) ?? 0);
+  final TextEditingController hybridDedController = TextEditingController();
+  final TextEditingController lowDedController = TextEditingController();
+  final TextEditingController mediumDedController = TextEditingController();
+  final TextEditingController highDedController = TextEditingController();
+
+  double get hybridTotal {
+    double netKg =
+        widget.hybridKg - (double.tryParse(hybridDedController.text) ?? 0);
+    return netKg * (double.tryParse(hybridPriceController.text) ?? 0);
+  }
+
+  double get lowTotal {
+    double netKg = widget.lowKg - (double.tryParse(lowDedController.text) ?? 0);
+    return netKg * (double.tryParse(lowPriceController.text) ?? 0);
+  }
+
+  double get mediumTotal {
+    double netKg =
+        widget.mediumKg - (double.tryParse(mediumDedController.text) ?? 0);
+    return netKg * (double.tryParse(mediumPriceController.text) ?? 0);
+  }
+
+  double get highTotal {
+    double netKg =
+        widget.highKg - (double.tryParse(highDedController.text) ?? 0);
+    return netKg * (double.tryParse(highPriceController.text) ?? 0);
+  }
 
   double get grandTotal => hybridTotal + lowTotal + mediumTotal + highTotal;
 
@@ -64,22 +83,26 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
       "totalAmount": grandTotal,
       "categories": {
         "hybrid": {
-          "kg": widget.hybridKg,
+          "gross_kg": widget.hybridKg,
+          "deduction": double.tryParse(hybridDedController.text) ?? 0,
           "price": double.tryParse(hybridPriceController.text) ?? 0,
           "total": hybridTotal,
         },
         "low": {
-          "kg": widget.lowKg,
+          "gross_kg": widget.lowKg,
+          "deduction": double.tryParse(lowDedController.text) ?? 0,
           "price": double.tryParse(lowPriceController.text) ?? 0,
           "total": lowTotal,
         },
         "medium": {
-          "kg": widget.mediumKg,
+          "gross_kg": widget.mediumKg,
+          "deduction": double.tryParse(mediumDedController.text) ?? 0,
           "price": double.tryParse(mediumPriceController.text) ?? 0,
           "total": mediumTotal,
         },
         "high": {
-          "kg": widget.highKg,
+          "gross_kg": widget.highKg,
+          "deduction": double.tryParse(highDedController.text) ?? 0,
           "price": double.tryParse(highPriceController.text) ?? 0,
           "total": highTotal,
         },
@@ -190,6 +213,7 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
                   _buildRow(
                     "Hybrid",
                     widget.hybridKg,
+                    hybridDedController,
                     hybridPriceController,
                     hybridTotal,
                     bluecolor,
@@ -197,6 +221,7 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
                   _buildRow(
                     "Normal (Low)",
                     widget.lowKg,
+                    lowDedController,
                     lowPriceController,
                     lowTotal,
                     graydarkcolorshade,
@@ -204,6 +229,7 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
                   _buildRow(
                     "Normal (Med)",
                     widget.mediumKg,
+                    mediumDedController,
                     mediumPriceController,
                     mediumTotal,
                     Colors.orange.shade800,
@@ -211,6 +237,7 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
                   _buildRow(
                     "Normal (High)",
                     widget.highKg,
+                    highDedController,
                     highPriceController,
                     highTotal,
                     primerycolor,
@@ -303,6 +330,18 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
             flex: 2,
             child: Center(
               child: Text(
+                "- Kg",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: blackcolor,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Center(
+              child: Text(
                 "Price",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
@@ -332,7 +371,8 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
   Widget _buildRow(
     String label,
     double kg,
-    TextEditingController controller,
+    TextEditingController dedController,
+    TextEditingController priceController,
     double total,
     Color color,
   ) {
@@ -364,7 +404,21 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
           Expanded(
             flex: 2,
             child: TextField(
-              controller: controller,
+              controller: dedController,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: TextField(
+              controller: priceController,
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
               onChanged: (_) => setState(() {}),

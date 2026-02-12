@@ -24,7 +24,19 @@ class _DashboardState extends State<Dashboard> {
   double normalLow = 0;
   double normalTotal = 0;
 
+  // 🔹 CURRENT STATUS VARIABLES
+  double curTotalAmount = 0;
+  double curHybridHigh = 0;
+  double curHybridMedium = 0;
+  double curHybridLow = 0;
+  double curHybridTotal = 0;
+  double curNormalHigh = 0;
+  double curNormalMedium = 0;
+  double curNormalLow = 0;
+  double curNormalTotal = 0;
+
   List<Map<String, dynamic>> savedSummaries = [];
+  final Map<int, TextEditingController> paymentControllers = {};
 
   @override
   void initState() {
@@ -38,6 +50,8 @@ class _DashboardState extends State<Dashboard> {
 
     // Fetch Status data
     final data = prefs.getString('today_load_list');
+    final savedData = prefs.getString('saved_summary_list');
+
     if (data != null) {
       final List<Map<String, dynamic>> loadedList =
           List<Map<String, dynamic>>.from(json.decode(data));
@@ -59,8 +73,24 @@ class _DashboardState extends State<Dashboard> {
       });
     }
 
+    // Fetch Current Status tracker
+    final curStatusData = prefs.getString('current_status_data');
+    if (curStatusData != null) {
+      final Map<String, dynamic> curStatus = json.decode(curStatusData);
+      setState(() {
+        curTotalAmount = (curStatus["totalAmount"] ?? 0).toDouble();
+        curHybridHigh = (curStatus["hybridHigh"] ?? 0).toDouble();
+        curHybridMedium = (curStatus["hybridMedium"] ?? 0).toDouble();
+        curHybridLow = (curStatus["hybridLow"] ?? 0).toDouble();
+        curHybridTotal = (curStatus["hybridTotal"] ?? 0).toDouble();
+        curNormalHigh = (curStatus["normalHigh"] ?? 0).toDouble();
+        curNormalMedium = (curStatus["normalMedium"] ?? 0).toDouble();
+        curNormalLow = (curStatus["normalLow"] ?? 0).toDouble();
+        curNormalTotal = (curStatus["normalTotal"] ?? 0).toDouble();
+      });
+    }
+
     // Fetch Saved Summaries
-    final savedData = prefs.getString('saved_summary_list');
     if (savedData != null) {
       setState(() {
         savedSummaries = List<Map<String, dynamic>>.from(
@@ -68,6 +98,22 @@ class _DashboardState extends State<Dashboard> {
         );
       });
     }
+  }
+
+  Future<void> resetCurrentStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      curTotalAmount = 0;
+      curHybridHigh = 0;
+      curHybridMedium = 0;
+      curHybridLow = 0;
+      curHybridTotal = 0;
+      curNormalHigh = 0;
+      curNormalMedium = 0;
+      curNormalLow = 0;
+      curNormalTotal = 0;
+    });
+    await prefs.remove('current_status_data');
   }
 
   Future<void> deleteSummary(int index) async {
@@ -78,46 +124,91 @@ class _DashboardState extends State<Dashboard> {
     await prefs.setString('saved_summary_list', json.encode(savedSummaries));
   }
 
+  Future<void> saveUpdatedSummaries(List<Map<String, dynamic>> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('saved_summary_list', json.encode(list));
+  }
+
+  void addPayment(int index, String amountStr) async {
+    double amount = double.tryParse(amountStr) ?? 0;
+    if (amount <= 0) return;
+
+    setState(() {
+      final item = savedSummaries[index];
+      double currentPaid = (item['paid'] ?? 0).toDouble();
+      item['paid'] = currentPaid + amount;
+      paymentControllers[index]?.clear();
+    });
+
+    await saveUpdatedSummaries(savedSummaries);
+  }
+
   Map<String, dynamic> calculateStatus(List<Map<String, dynamic>> list) {
-    double hybridHigh = 0, hybridMedium = 0, hybridLow = 0;
-    double normalHigh = 0, normalMedium = 0, normalLow = 0;
-    double totalAmount = 0;
+    double hHigh = 0, hMed = 0, hLow = 0;
+    double nHigh = 0, nMed = 0, nLow = 0;
+    double totalAmt = 0;
 
     for (var item in list) {
-      final cotton = item["cotton"];
-      final quality = item["quality"];
-      final kg = double.tryParse(item["kg"].toString()) ?? 0;
-      final amount = (item["amount"] ?? 0).toDouble();
+      if (item.containsKey('categories')) {
+        // Finalized Summary Record
+        totalAmt += (item["totalAmount"] ?? 0).toDouble();
+        Map<String, dynamic> cats = item['categories'] ?? {};
 
-      totalAmount += amount;
+        cats.forEach((key, val) {
+          double kg = (val["kg"] ?? 0).toDouble();
+          if (kg <= 0) {
+            double gKg = (val["gross_kg"] ?? 0).toDouble();
+            double ded = (val["deduction"] ?? 0).toDouble();
+            kg = gKg - ded;
+          }
 
-      /// HYBRID
-      if (cotton.contains("Hybrid")) {
-        if (quality == "High") hybridHigh += kg;
-        if (quality == "Medium") hybridMedium += kg;
-        if (quality == "Low") hybridLow += kg;
-      }
+          if (key == "hybrid") {
+            hHigh += kg;
+          } else if (key == "high") {
+            nHigh += kg;
+          } else if (key == "medium") {
+            nMed += kg;
+          } else if (key == "low") {
+            nLow += kg;
+          }
+        });
+      } else {
+        // Raw Load Entry
+        String cotton = (item["cotton"] ?? "").toString();
+        String quality = (item["quality"] ?? "").toString();
+        double kg = double.tryParse(item["kg"]?.toString() ?? "0") ?? 0;
+        double amount = double.tryParse(item["amount"]?.toString() ?? "0") ?? 0;
 
-      /// NORMAL
-      if (cotton.contains("Normal")) {
-        if (quality == "High") normalHigh += kg;
-        if (quality == "Medium") normalMedium += kg;
-        if (quality == "Low") normalLow += kg;
+        totalAmt += amount;
+
+        if (cotton.contains("Hybrid")) {
+          if (quality == "High")
+            hHigh += kg;
+          else if (quality == "Medium")
+            hMed += kg;
+          else
+            hLow += kg;
+        } else if (cotton.contains("Normal")) {
+          if (quality == "High")
+            nHigh += kg;
+          else if (quality == "Medium")
+            nMed += kg;
+          else
+            nLow += kg;
+        }
       }
     }
 
     return {
-      "hybridHigh": hybridHigh,
-      "hybridMedium": hybridMedium,
-      "hybridLow": hybridLow,
-      "hybridTotal": hybridHigh + hybridMedium + hybridLow,
-
-      "normalHigh": normalHigh,
-      "normalMedium": normalMedium,
-      "normalLow": normalLow,
-      "normalTotal": normalHigh + normalMedium + normalLow,
-
-      "totalAmount": totalAmount,
+      "hybridHigh": hHigh,
+      "hybridMedium": hMed,
+      "hybridLow": hLow,
+      "hybridTotal": hHigh + hMed + hLow,
+      "normalHigh": nHigh,
+      "normalMedium": nMed,
+      "normalLow": nLow,
+      "normalTotal": nHigh + nMed + nLow,
+      "totalAmount": totalAmt,
     };
   }
 
@@ -149,7 +240,7 @@ class _DashboardState extends State<Dashboard> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              singleStatusCard(
+              _singleStatusCard(
                 title: sectionTitle(context, "Today Status"),
                 totalAmount: totalAmount.toStringAsFixed(0),
 
@@ -166,17 +257,18 @@ class _DashboardState extends State<Dashboard> {
 
               const SizedBox(height: 12),
 
-              singleStatusCard(
+              _singleStatusCard(
                 title: sectionTitle(context, "Current Status"),
-                totalAmount: "54876",
-                hybridHigh: "60 Kg",
-                hybridMedium: "40 Kg",
-                hybridLow: "20 Kg",
-                hybridTotal: "120 Kg",
-                normalHigh: "30 Kg",
-                normalMedium: "40 Kg",
-                normalLow: "20 Kg",
-                normalTotal: "90 Kg",
+                totalAmount: curTotalAmount.toStringAsFixed(0),
+                hybridHigh: "${curHybridHigh.toStringAsFixed(0)} Kg",
+                hybridMedium: "${curHybridMedium.toStringAsFixed(0)} Kg",
+                hybridLow: "${curHybridLow.toStringAsFixed(0)} Kg",
+                hybridTotal: "${curHybridTotal.toStringAsFixed(0)} Kg",
+                normalHigh: "${curNormalHigh.toStringAsFixed(0)} Kg",
+                normalMedium: "${curNormalMedium.toStringAsFixed(0)} Kg",
+                normalLow: "${curNormalLow.toStringAsFixed(0)} Kg",
+                normalTotal: "${curNormalTotal.toStringAsFixed(0)} Kg",
+                onReset: resetCurrentStatus,
               ),
 
               const SizedBox(height: 24),
@@ -198,10 +290,19 @@ class _DashboardState extends State<Dashboard> {
                   ),
                 )
               else
-                ...List.generate(savedSummaries.length, (index) {
-                  final item = savedSummaries[index];
-                  return _summaryRow(index, item);
-                }),
+                ...savedSummaries
+                    .asMap()
+                    .entries
+                    .where((entry) {
+                      final item = entry.value;
+                      double totalAmount = (item['totalAmount'] ?? 0)
+                          .toDouble();
+                      double paidAmount = (item['paid'] ?? 0).toDouble();
+                      return (totalAmount - paidAmount) > 0;
+                    })
+                    .map((entry) {
+                      return _summaryRow(entry.key, entry.value);
+                    }),
               const SizedBox(height: 50),
             ],
           ),
@@ -213,7 +314,7 @@ class _DashboardState extends State<Dashboard> {
   }
 
   /// ===================== WIDGETS =====================
-  static Widget singleStatusCard({
+  Widget _singleStatusCard({
     required Widget title,
     // Hybrid
     required String totalAmount,
@@ -227,6 +328,7 @@ class _DashboardState extends State<Dashboard> {
     required String normalMedium,
     required String normalLow,
     required String normalTotal,
+    VoidCallback? onReset,
   }) {
     return Container(
       width: double.infinity,
@@ -249,7 +351,22 @@ class _DashboardState extends State<Dashboard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              title,
+              Row(
+                children: [
+                  title,
+                  if (onReset != null)
+                    IconButton(
+                      icon: const Icon(
+                        Icons.refresh,
+                        color: Colors.red,
+                        size: 20,
+                      ),
+                      onPressed: onReset,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                ],
+              ),
               Padding(
                 padding: const EdgeInsets.only(right: 10),
                 child: Text("₹ $totalAmount", style: textstyle),
@@ -318,7 +435,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  static Widget _statusRow({
+  Widget _statusRow({
     required String label,
     required String hybridValue,
     required String normalValue,
@@ -364,8 +481,14 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Widget _summaryRow(int index, Map<String, dynamic> item) {
-    Map<String, dynamic> categories = item['categories'] ?? {};
+    if (!paymentControllers.containsKey(index)) {
+      paymentControllers[index] = TextEditingController();
+    }
+    double totalAmount = (item['totalAmount'] ?? 0).toDouble();
+    double paidAmount = (item['paid'] ?? 0).toDouble();
+    double balanceAmount = totalAmount - paidAmount;
 
+    Map<String, dynamic> categories = item['categories'] ?? {};
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(12),
@@ -464,12 +587,24 @@ class _DashboardState extends State<Dashboard> {
           ...categories.entries
               .where((e) {
                 var val = e.value;
-                return (val is Map) &&
-                    (double.tryParse(val['kg'].toString()) ?? 0) > 0;
+                double gKg =
+                    double.tryParse(val['gross_kg']?.toString() ?? '') ?? 0;
+                double ded =
+                    double.tryParse(val['deduction']?.toString() ?? '') ?? 0;
+                double net =
+                    double.tryParse(val['kg']?.toString() ?? '') ?? (gKg - ded);
+                return net > 0;
               })
               .map((entry) {
                 String label = entry.key;
                 var data = entry.value;
+                double gKg =
+                    double.tryParse(data['gross_kg']?.toString() ?? '') ?? 0;
+                double ded =
+                    double.tryParse(data['deduction']?.toString() ?? '') ?? 0;
+                double net =
+                    double.tryParse(data['kg']?.toString() ?? '') ??
+                    (gKg - ded);
                 String type = label == "hybrid" ? "Hybrid" : "Normal";
                 String quality = label == "hybrid"
                     ? "Cotton"
@@ -515,12 +650,25 @@ class _DashboardState extends State<Dashboard> {
                       Expanded(
                         flex: 2,
                         child: Center(
-                          child: Text(
-                            "${data['kg']}",
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (data.containsKey('gross_kg'))
+                                Text(
+                                  "${gKg.toStringAsFixed(1)} - ${ded.toStringAsFixed(1)}",
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              Text(
+                                "${net.toStringAsFixed(1)}",
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -552,35 +700,104 @@ class _DashboardState extends State<Dashboard> {
               })
               .toList(),
 
-          const Divider(height: 20),
+          const Divider(height: 30),
+
+          // Payment and Balance Section
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Grand Total Amount",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    "₹${NumberFormat('#,##,###').format(item['totalAmount'] ?? 0)}",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: primerycolor,
-                      fontSize: 20,
-                    ),
-                  ),
-                ],
-              ),
+              _amountColumn("Total Amount", totalAmount, primerycolor),
+              _amountColumn("Paid", paidAmount, Colors.green),
+              _amountColumn("Balance", balanceAmount, Colors.red, isBold: true),
             ],
           ),
+
+          const SizedBox(height: 20),
+
+          // Add Payment Input (Hide if balance is 0)
+          if (balanceAmount > 0)
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: paymentControllers[index],
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: "Add Payment (₹)",
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                  onPressed: () =>
+                      addPayment(index, paymentControllers[index]!.text),
+                  child: const Text(
+                    "ADD",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text(
+                  "✅ FULL PAID",
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
+    );
+  }
+
+  Widget _amountColumn(
+    String label,
+    double amount,
+    Color color, {
+    bool isBold = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: Colors.grey,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          "₹${NumberFormat('#,##,###').format(amount)}",
+          style: TextStyle(
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+            color: color,
+            fontSize: isBold ? 18 : 15,
+          ),
+        ),
+      ],
     );
   }
 }

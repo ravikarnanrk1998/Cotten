@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_sticky_header/flutter_sticky_header.dart';
 import 'commonstyle.dart';
 
 class PreviewsData extends StatefulWidget {
@@ -13,25 +12,46 @@ class PreviewsData extends StatefulWidget {
 }
 
 class _PreviewsDataState extends State<PreviewsData> {
-  List<Map<String, dynamic>> todayList = [];
-  final List<Map<String, dynamic>> dataList = [
-    {
-      "name": "Cotton A",
-      "date": "05 Feb 2026",
-      "inKg": 120,
-      "outKg": 100,
-      "spend": 50000,
-      "return": 55000,
-    },
-    {
-      "name": "Cotton B",
-      "date": "04 Feb 2026",
-      "inKg": 90,
-      "outKg": 95,
-      "spend": 42000,
-      "return": 40000,
-    },
-  ];
+  List<Map<String, dynamic>> savedSummaries = [];
+  List<Map<String, dynamic>> filteredSummaries = [];
+  final Map<int, TextEditingController> paymentControllers = {};
+
+  List<Map<String, dynamic>> allSavedSummaries = [];
+
+  Future<void> loadLocalData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Load Summaries
+    final summaryData = prefs.getString('saved_summary_list');
+    if (summaryData != null) {
+      allSavedSummaries = List<Map<String, dynamic>>.from(
+        json.decode(summaryData),
+      );
+      setState(() {
+        filteredSummaries = allSavedSummaries.reversed.toList();
+      });
+    }
+  }
+
+  Future<void> saveUpdatedSummaries(List<Map<String, dynamic>> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('saved_summary_list', json.encode(list));
+  }
+
+  void addPayment(int index, String amountStr) async {
+    double amount = double.tryParse(amountStr) ?? 0;
+    if (amount <= 0) return;
+
+    setState(() {
+      final item = filteredSummaries[index];
+      double currentPaid = (item['paid'] ?? 0).toDouble();
+      item['paid'] = currentPaid + amount;
+      paymentControllers[index]?.clear();
+    });
+
+    await saveUpdatedSummaries(allSavedSummaries);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -57,53 +77,21 @@ class _PreviewsDataState extends State<PreviewsData> {
     return DateFormat('dd MMM').format(date);
   }
 
-  void filterDataByDate(DateTime selectedDate) {
-    final selectedDateStr = formatDate(selectedDate);
+  String formatDateFull(DateTime date) {
+    return DateFormat('dd MMM, yyyy').format(date);
+  }
 
-    final filteredList = loadedList.where((item) {
-      final timeStr = item['time']; // "04 Feb, 07:40 PM"
-      final itemDate = timeStr.split(',')[0]; // "04 Feb"
-      return itemDate == selectedDateStr;
+  void filterDataByDate(DateTime selectedDate) {
+    final fullDateStr = formatDateFull(selectedDate);
+
+    // Filter Summaries List
+    final summariesList = allSavedSummaries.where((item) {
+      return item['date'] == fullDateStr;
     }).toList();
 
     setState(() {
-      todayList = filteredList.reversed.toList();
-    });
-  }
-
-  List<Map<String, dynamic>> loadedList = [];
-
-  Future<void> loadLocalData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('today_load_list');
-
-    if (data != null) {
-      loadedList = List<Map<String, dynamic>>.from(json.decode(data));
-
-      setState(() {
-        todayList = loadedList.reversed.toList(); // default show all
-      });
-    }
-  }
-
-  double totalTodayAmount() {
-    double total = 0;
-
-    for (var item in todayList) {
-      total += double.tryParse(item['amount'].toString()) ?? 0;
-    }
-    return total;
-  }
-
-  bool sync = false;
-
-  void syncfunction() {
-    setState(() {
-      if (sync == false) {
-        sync = true;
-      } else {
-        sync = false;
-      }
+      filteredSummaries = summariesList.reversed.toList();
+      paymentControllers.clear(); // Clear controllers when date changes
     });
   }
 
@@ -112,237 +100,373 @@ class _PreviewsDataState extends State<PreviewsData> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
-        title: Text("Previews Data", style: appbarstyle),
+        title: Text("Previews Load Sent", style: appbarstyle),
         backgroundColor: primerycolor,
         iconTheme: IconThemeData(color: whitecolor),
         actions: [
           IconButton(
-            onPressed: () => syncfunction(),
-            icon: Icon(Icons.sync, size: 35),
-          ),
-          IconButton(
             onPressed: () => pickDate(context),
             icon: Icon(Icons.date_range, size: 35),
           ),
-          SizedBox(width: 25),
+          const SizedBox(width: 25),
         ],
       ),
-      body: Container(
-        height: MediaQuery.of(context).size.height,
-        color: graycolorshade,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: sync
-              ? CustomScrollView(
-                  slivers: [
-                    SliverStickyHeader(
-                      header: sectionTitle(context, "Out Load List"),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          return dataCard(dataList[index]);
-                        }, childCount: dataList.length),
+      body: Padding(
+        padding: const EdgeInsets.only(bottom: 50),
+        child: Container(
+          height: MediaQuery.of(context).size.height,
+          color: graycolorshade,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: CustomScrollView(
+              slivers: [
+                if (filteredSummaries.isNotEmpty)
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      return _summaryRow(index, filteredSummaries[index]);
+                    }, childCount: filteredSummaries.length),
+                  )
+                else
+                  SliverToBoxAdapter(
+                    child: Container(
+                      height: 200,
+                      alignment: Alignment.center,
+                      child: Text(
+                        "No summaries found for this date.",
+                        style: TextStyle(
+                          color: graydarkcolorshade,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ),
-                  ],
-                )
-              : CustomScrollView(
-                  slivers: [
-                    /// ---------------- FORM CARD ----------------
-                    const SliverToBoxAdapter(child: SizedBox(height: 20)),
-
-                    /// ---------------- STICKY HEADER + LIST ----------------
-                    if (todayList.isNotEmpty)
-                      SliverStickyHeader(
-                        header: Container(
-                          color: graycolorshade,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 8,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  sectionTitle(context, "Previews Total List"),
-                                  Text(
-                                    "₹ ${totalTodayAmount().toStringAsFixed(2)}",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: primerycolor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            final item = todayList[index];
-
-                            return Card(
-                              child: ListTile(
-                                title: Text(
-                                  "${item['cotton']} - ${item['quality']}",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: (item['cotton'] == "Hybrid Cotton")
-                                        ? bluecolor
-                                        : (item['quality'] == "High")
-                                        ? primerycolor
-                                        : (item['quality'] == "Medium")
-                                        ? primerycolorshade
-                                        : graydarkcolorshade,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                subtitle: Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    "${item['kg']} Kg × ₹${item['price']} = ₹${item['amount']}\n${item['time']}",
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.print,
-                                        color: primerycolor,
-                                      ),
-                                      onPressed: () {},
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }, childCount: todayList.length),
-                        ),
-                      ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 60)),
-                  ],
-                ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
-}
 
-Widget dataCard(Map<String, dynamic> item) {
-  final pl = profitLoss(item["spend"], item["return"]);
+  Widget _summaryRow(int index, Map<String, dynamic> item) {
+    if (!paymentControllers.containsKey(index)) {
+      paymentControllers[index] = TextEditingController();
+    }
+    double totalAmount = (item['totalAmount'] ?? 0).toDouble();
+    double paidAmount = (item['paid'] ?? 0).toDouble();
+    double balanceAmount = totalAmount - paidAmount;
 
-  return Container(
-    margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: const [
-        BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
-      ],
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
+    Map<String, dynamic> categories = item['categories'] ?? {};
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// NAME + DATE
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Text(item["name"], style: inputtextstyle),
-                  SizedBox(width: 5),
-                  IconButton(
-                    onPressed: () {},
-                    icon: Icon(Icons.print, color: primerycolor),
-                  ),
-                ],
-              ),
-              Text(item["date"], style: inputtextstyle2),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          /// KG DETAILS
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _infoTile("In Kg", item["inKg"].toString()),
-              _infoTile("Out Kg", item["outKg"].toString()),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          /// AMOUNT DETAILS
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _infoTile("Spend", "₹${item["spend"]}"),
-              _infoTile("Return", "₹${item["return"]}"),
-            ],
-          ),
-
-          const Divider(height: 24),
-
-          /// PROFIT / LOSS
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "Profit / Loss",
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Text(
+                item['name'] ?? "Unknown",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                  color: Colors.black87,
+                ),
               ),
               Text(
-                "₹$pl",
+                item['date'] ?? "-",
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: pl >= 0 ? Colors.green : Colors.red,
+                  color: graydarkcolorshade,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
+          const Divider(height: 20, thickness: 1),
+
+          // Details Table Header
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Text(
+                  "Type/Quality",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Center(
+                  child: Text(
+                    "Kg",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Center(
+                  child: Text(
+                    "Price",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Container(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    "Total",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+
+          // Render each category breakdown
+          ...categories.entries
+              .where((e) {
+                var val = e.value;
+                double gKg =
+                    double.tryParse(val['gross_kg']?.toString() ?? '') ?? 0;
+                double ded =
+                    double.tryParse(val['deduction']?.toString() ?? '') ?? 0;
+                double net =
+                    double.tryParse(val['kg']?.toString() ?? '') ?? (gKg - ded);
+                return net > 0;
+              })
+              .map((entry) {
+                String label = entry.key;
+                var data = entry.value;
+                double gKg =
+                    double.tryParse(data['gross_kg']?.toString() ?? '') ?? 0;
+                double ded =
+                    double.tryParse(data['deduction']?.toString() ?? '') ?? 0;
+                double net =
+                    double.tryParse(data['kg']?.toString() ?? '') ??
+                    (gKg - ded);
+                String type = label == "hybrid" ? "Hybrid" : "Normal";
+                String quality = label == "hybrid"
+                    ? "Cotton"
+                    : entry.key.replaceFirst(
+                        entry.key[0],
+                        entry.key[0].toUpperCase(),
+                      );
+                Color color = label == "hybrid"
+                    ? bluecolor
+                    : (label == "high"
+                          ? primerycolor
+                          : (label == "medium"
+                                ? Colors.orange.shade800
+                                : graydarkcolorshade));
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              type,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: color,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              quality,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (data.containsKey('gross_kg'))
+                                Text(
+                                  "${gKg.toStringAsFixed(1)} - ${ded.toStringAsFixed(1)}",
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              Text(
+                                "${net.toStringAsFixed(1)}",
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Center(
+                          child: Text(
+                            "₹${data['price']}",
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Container(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            "₹${NumberFormat('#,##,###').format(data['total'] ?? 0)}",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              })
+              .toList(),
+
+          const Divider(height: 30),
+
+          // Payment and Balance Section
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _amountColumn("Total Amount", totalAmount, primerycolor),
+              _amountColumn("Paid", paidAmount, Colors.green),
+              _amountColumn("Balance", balanceAmount, Colors.red, isBold: true),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Add Payment Input (Hide if balance is 0)
+          if (balanceAmount > 0)
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: paymentControllers[index],
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: "Add Payment (₹)",
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                  onPressed: () =>
+                      addPayment(index, paymentControllers[index]!.text),
+                  child: const Text(
+                    "ADD",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text(
+                  "✅ FULL PAID",
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
 
-Widget _infoTile(String label, String value) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          color: Colors.orange.shade600,
-          fontWeight: FontWeight.w600,
+  Widget _amountColumn(
+    String label,
+    double amount,
+    Color color, {
+    bool isBold = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: Colors.grey,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ),
-      const SizedBox(height: 4),
-      Text(
-        value,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-      ),
-    ],
-  );
-}
-
-int profitLoss(int spend, int returned) {
-  return returned - spend;
+        Text(
+          "₹${NumberFormat('#,##,###').format(amount)}",
+          style: TextStyle(
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+            color: color,
+            fontSize: isBold ? 18 : 15,
+          ),
+        ),
+      ],
+    );
+  }
 }

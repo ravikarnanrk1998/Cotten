@@ -83,12 +83,15 @@ class _CurrectDataState extends State<CurrectData> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
-        title: Text("Current Data", style: appbarstyle),
+        title: Text("Previews Data", style: appbarstyle),
         backgroundColor: primerycolor,
         iconTheme: IconThemeData(color: whitecolor),
         actions: [
-          IconButton(onPressed:() => pickDate(context), icon: Icon(Icons.date_range,size: 35,)),
-        SizedBox(width: 25),
+          IconButton(
+            onPressed: () => pickDate(context),
+            icon: Icon(Icons.date_range, size: 35),
+          ),
+          SizedBox(width: 25),
         ],
       ),
       body: Container(
@@ -99,7 +102,6 @@ class _CurrectDataState extends State<CurrectData> {
           child: CustomScrollView(
             slivers: [
               /// ---------------- FORM CARD ----------------
-          
               const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
               /// ---------------- STICKY HEADER + LIST ----------------
@@ -117,7 +119,7 @@ class _CurrectDataState extends State<CurrectData> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            sectionTitle(context, "Current Total List"),
+                            sectionTitle(context, "Previews Total List"),
                             Text(
                               "₹ ${totalTodayAmount().toStringAsFixed(2)}",
                               style: TextStyle(
