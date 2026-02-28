@@ -1,9 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'commonstyle.dart';
 import 'loadsummary.dart';
+import 'firebase_service.dart';
 
 class LoadSendData extends StatefulWidget {
   const LoadSendData({super.key});
@@ -18,92 +17,103 @@ class _LoadSendDataState extends State<LoadSendData> {
   String selectedCotton = "Normal Cotton";
   String selectedQuality = "Medium";
 
-  List<Map<String, dynamic>> todayList = [];
-
-  @override
-  void initState() {
-    super.initState();
-    loadLocalData();
-  }
-
-  // 🔹 LOAD DATA FROM LOCAL STORAGE
-  Future<void> loadLocalData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('load_sent_list');
-
-    if (data != null) {
-      final List<Map<String, dynamic>> loadedList =
-          List<Map<String, dynamic>>.from(json.decode(data));
-
-      setState(() {
-        todayList = loadedList.reversed.toList();
-      });
-    }
-  }
-
-  // 🔹 SAVE DATA TO LOCAL STORAGE
-  Future<void> saveLocalData() async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setString('load_sent_list', json.encode(todayList));
-  }
-
-  void addEntry() {
+  void addEntry() async {
     final entryKg = double.tryParse(kgController.text) ?? 0;
     if (entryKg == 0) return;
 
-    final entry = {
-      "cotton": selectedCotton,
-      "quality": selectedQuality,
-      "kg": entryKg,
-      "time": DateFormat('hh:mm a').format(DateTime.now()),
-      "id": DateTime.now().millisecondsSinceEpoch, // Unique ID for deletion
-    };
+    try {
+      final entry = {
+        "cotton": selectedCotton,
+        "quality": selectedQuality,
+        "kg": entryKg,
+        "time": DateFormat('hh:mm a').format(DateTime.now()),
+      };
 
-    setState(() {
-      todayList.insert(0, entry);
+      await FirebaseService.addLoadSent(entry);
       kgController.clear();
-    });
-
-    saveLocalData();
-  }
-
-  // 🔹 DELETE ENTRY
-  void deleteEntry(int id) {
-    setState(() {
-      todayList.removeWhere((item) => item['id'] == id);
-    });
-    saveLocalData();
-  }
-
-  double totalAllAmount() {
-    return 0; // No amount here
-  }
-
-  double totalHybridCottonQuality() {
-    double total = 0;
-    for (var item in todayList) {
-      if (item['cotton'] == 'Hybrid Cotton') {
-        total += double.tryParse(item['kg'].toString()) ?? 0;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
       }
     }
-    return total;
   }
 
-  double totalKgByQuality(String quality) {
-    double total = 0;
-    for (var item in todayList) {
-      if (item['cotton'] == 'Normal Cotton' && item['quality'] == quality) {
-        total += double.tryParse(item['kg'].toString()) ?? 0;
+  void deleteEntry(String id) async {
+    try {
+      await FirebaseService.deleteLoadSent(id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
       }
     }
-    return total;
+  }
+
+  double calculateHybridKg(List<Map<String, dynamic>> list) {
+    return list
+        .where((e) => e['cotton'] == 'Hybrid Cotton')
+        .fold(0, (sum, e) => sum + (double.tryParse(e['kg'].toString()) ?? 0));
+  }
+
+  double calculateQualityKg(List<Map<String, dynamic>> list, String quality) {
+    return list
+        .where((e) => e['cotton'] == 'Normal Cotton' && e['quality'] == quality)
+        .fold(0, (sum, e) => sum + (double.tryParse(e['kg'].toString()) ?? 0));
+  }
+
+  List<double> getQualityKgList(
+    List<Map<String, dynamic>> list,
+    String? cotton,
+    String? quality,
+  ) {
+    return list
+        .where(
+          (e) =>
+              (cotton == null || e['cotton'] == cotton) &&
+              (quality == null || e['quality'] == quality),
+        )
+        .map((e) => double.tryParse(e['kg'].toString()) ?? 0.0)
+        .where((kg) => kg > 0)
+        .toList();
   }
 
   String _todayDate() {
     final now = DateTime.now();
-    return "${now.day.toString().padLeft(2, '0')}-"
-        "${now.month.toString().padLeft(2, '0')}-"
-        "${now.year}";
+    return "${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}";
+  }
+
+  Widget _bagCountChip(String label, int count, Color color) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withOpacity(0.5)),
+          ),
+          child: Text(
+            "$count Bags",
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _tableCell(String title, String value, Color color) {
@@ -151,7 +161,6 @@ class _LoadSendDataState extends State<LoadSendData> {
         ),
       ),
     );
-
     return isExpanded
         ? Expanded(child: cell)
         : SizedBox(width: width, child: cell);
@@ -174,7 +183,6 @@ class _LoadSendDataState extends State<LoadSendData> {
         ),
       ),
     );
-
     return isExpanded
         ? Expanded(child: cell)
         : SizedBox(width: width, child: cell);
@@ -186,7 +194,7 @@ class _LoadSendDataState extends State<LoadSendData> {
     Color color,
   ) {
     return Container(
-      width: 140, // Increased width for better fit
+      width: 140,
       margin: const EdgeInsets.only(right: 10),
       decoration: BoxDecoration(
         color: whitecolor,
@@ -194,7 +202,7 @@ class _LoadSendDataState extends State<LoadSendData> {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black12,
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -256,6 +264,14 @@ class _LoadSendDataState extends State<LoadSendData> {
                       isExpanded: true,
                       isBold: true,
                     ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete,
+                        size: 16,
+                        color: Colors.red,
+                      ),
+                      onPressed: () => deleteEntry(item['id']),
+                    ),
                   ],
                 ),
               );
@@ -276,321 +292,393 @@ class _LoadSendDataState extends State<LoadSendData> {
         backgroundColor: primerycolor,
         iconTheme: IconThemeData(color: whitecolor),
         actions: [
-          GestureDetector(
-            onTap: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => LoadSummaryPage(
-                    hybridKg: totalHybridCottonQuality(),
-                    lowKg: totalKgByQuality("Low"),
-                    mediumKg: totalKgByQuality("Medium"),
-                    highKg: totalKgByQuality("High"),
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: FirebaseService.getLoadSent(),
+            builder: (context, snapshot) {
+              final currentList = snapshot.data ?? [];
+              return GestureDetector(
+                onTap: () async {
+                  if (currentList.isEmpty) return;
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => LoadSummaryPage(
+                        hybridKg: calculateHybridKg(currentList),
+                        lowKg: calculateQualityKg(currentList, "Low"),
+                        mediumKg: calculateQualityKg(currentList, "Medium"),
+                        highKg: calculateQualityKg(currentList, "High"),
+                        hybridList: getQualityKgList(
+                          currentList,
+                          "Hybrid Cotton",
+                          null,
+                        ),
+                        lowList: getQualityKgList(
+                          currentList,
+                          "Normal Cotton",
+                          "Low",
+                        ),
+                        mediumList: getQualityKgList(
+                          currentList,
+                          "Normal Cotton",
+                          "Medium",
+                        ),
+                        highList: getQualityKgList(
+                          currentList,
+                          "Normal Cotton",
+                          "High",
+                        ),
+                      ),
+                    ),
+                  );
+
+                  if (result == true) {
+                    try {
+                      await FirebaseService.clearLoadSent();
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("Error: $e"),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(width: 2, color: whitecolor),
+                    color: redcolor,
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 3,
+                  ),
+                  child: Center(child: Text("Send", style: appbarstyle)),
                 ),
               );
-
-              if (result == true) {
-                setState(() {
-                  todayList.clear();
-                  selectedCotton = "Normal Cotton";
-                  selectedQuality = "Medium";
-                  kgController.clear();
-                });
-                await saveLocalData();
-              }
             },
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(width: 2, color: whitecolor),
-                color: redcolor,
-                borderRadius: BorderRadiusDirectional.circular(10),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  top: 5,
-                  bottom: 5,
-                  left: 15,
-                  right: 15,
-                ),
-                child: Text("Send", style: appbarstyle),
-              ),
-            ),
           ),
-          SizedBox(width: 30),
+          const SizedBox(width: 30),
         ],
       ),
-      body: Container(
-        height: MediaQuery.of(context).size.height,
-        color: graycolorshade,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: CustomScrollView(
-            slivers: [
-              /// ---------------- FORM CARD ----------------
-              SliverToBoxAdapter(
-                child: Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  color: whitecolor,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        DropdownButtonFormField<String>(
-                          value: selectedCotton,
-                          isDense: true,
-                          decoration: InputDecoration(
-                            labelText: "Cotton Type",
-                            labelStyle: inputtextstyle,
-                            suffixStyle: inputtextstyle,
-                            border: OutlineInputBorder(),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(width: 2),
-                            ),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 18, // ⭐ reduce height here
-                            ),
+      body: Stack(
+        children: [
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: FirebaseService.getLoadSent(),
+            builder: (context, snapshot) {
+              final todayList = snapshot.data ?? [];
+              return Container(
+                height: MediaQuery.of(context).size.height,
+                color: graycolorshade,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          items: ["Hybrid Cotton", "Normal Cotton"]
-                              .map(
-                                (e) =>
-                                    DropdownMenuItem(value: e, child: Text(e)),
-                              )
-                              .toList(),
-                          onChanged: (v) => setState(() => selectedCotton = v!),
-                        ),
-                        const SizedBox(height: 12),
-
-                        DropdownButtonFormField<String>(
-                          value: selectedQuality,
-                          isDense: true,
-                          decoration: InputDecoration(
-                            labelText: "Quality Type",
-                            labelStyle: inputtextstyle,
-                            suffixStyle: inputtextstyle,
-                            border: OutlineInputBorder(),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(width: 2),
-                            ),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 18,
-                            ),
-                          ),
-                          items: ["High", "Medium", "Low"]
-                              .map(
-                                (e) =>
-                                    DropdownMenuItem(value: e, child: Text(e)),
-                              )
-                              .toList(),
-                          onChanged: (v) =>
-                              setState(() => selectedQuality = v!),
-                        ),
-                        const SizedBox(height: 12),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: kgController,
-                                style: inputtextstyle,
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  labelText: "Enter Kg",
-                                  labelStyle: inputtextstyle,
-                                  suffixStyle: inputtextstyle,
-                                  border: OutlineInputBorder(),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(width: 2),
+                          color: whitecolor,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                DropdownButtonFormField<String>(
+                                  value: selectedCotton,
+                                  isDense: true,
+                                  decoration: const InputDecoration(
+                                    labelText: "Cotton Type",
+                                    border: OutlineInputBorder(),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(width: 2),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 18,
+                                    ),
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 18,
-                                  ),
-                                ),
-                                onSubmitted: (_) => addEntry(),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            SizedBox(
-                              width: 80,
-                              height: 60,
-                              child: GestureDetector(
-                                onTap: addEntry,
-                                child: commonaddbutton(context, "Add"),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Summary Table Header
-                        sectiontextTitle(context, "Load Summary"),
-                        const SizedBox(height: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: whitecolor,
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 4,
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              _tableCell(
-                                "Hybrid",
-                                totalHybridCottonQuality().toStringAsFixed(1),
-                                bluecolor,
-                              ),
-                              _tableCell(
-                                "High",
-                                totalKgByQuality("High").toStringAsFixed(1),
-                                primerycolor,
-                              ),
-                              _tableCell(
-                                "Medium",
-                                totalKgByQuality("Medium").toStringAsFixed(1),
-                                primerycolorshade,
-                              ),
-                              _tableCell(
-                                "Low",
-                                totalKgByQuality("Low").toStringAsFixed(1),
-                                graydarkcolorshade,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 20)),
-
-              /// ---------------- QUAD-TABLE HISTORY ----------------
-              if (todayList.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            sectionTitle(context, "Load History"),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: bluecolor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                              child: Text(
-                                _todayDate(),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: blackcolor,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 15),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (todayList.any(
-                                (e) => e['cotton'] == "Hybrid Cotton",
-                              ))
-                                _verticalEntriesTable(
-                                  "Hybrid",
-                                  todayList
-                                      .where(
-                                        (e) => e['cotton'] == "Hybrid Cotton",
+                                  items: ["Hybrid Cotton", "Normal Cotton"]
+                                      .map(
+                                        (e) => DropdownMenuItem(
+                                          value: e,
+                                          child: Text(e),
+                                        ),
                                       )
-                                      .toList()
-                                      .reversed
                                       .toList(),
-                                  bluecolor,
+                                  onChanged: (v) =>
+                                      setState(() => selectedCotton = v!),
                                 ),
-                              if (todayList.any(
-                                (e) =>
-                                    e['cotton'] == "Normal Cotton" &&
-                                    e['quality'] == "Low",
-                              ))
-                                _verticalEntriesTable(
-                                  "Low",
-                                  todayList
-                                      .where(
+                                const SizedBox(height: 12),
+                                DropdownButtonFormField<String>(
+                                  value: selectedQuality,
+                                  isDense: true,
+                                  decoration: const InputDecoration(
+                                    labelText: "Quality Type",
+                                    border: OutlineInputBorder(),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(width: 2),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 18,
+                                    ),
+                                  ),
+                                  items: ["High", "Medium", "Low"]
+                                      .map(
+                                        (e) => DropdownMenuItem(
+                                          value: e,
+                                          child: Text(e),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => selectedQuality = v!),
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: kgController,
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(
+                                          labelText: "Enter Kg",
+                                          border: OutlineInputBorder(),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(width: 2),
+                                          ),
+                                          contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 18,
+                                          ),
+                                        ),
+                                        onSubmitted: (_) => addEntry(),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    SizedBox(
+                                      width: 80,
+                                      height: 50,
+                                      child: GestureDetector(
+                                        onTap: addEntry,
+                                        child: commonaddbutton(context, "Add"),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                sectiontextTitle(context, "Load Summary"),
+                                const SizedBox(height: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: whitecolor,
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      _tableCell(
+                                        "Hybrid",
+                                        "${calculateHybridKg(todayList).toStringAsFixed(1)} (${getQualityKgList(todayList, "Hybrid Cotton", null).length})",
+                                        bluecolor,
+                                      ),
+                                      _tableCell(
+                                        "High",
+                                        "${calculateQualityKg(todayList, "High").toStringAsFixed(1)} (${getQualityKgList(todayList, "Normal Cotton", "High").length})",
+                                        primerycolor,
+                                      ),
+                                      _tableCell(
+                                        "Medium",
+                                        "${calculateQualityKg(todayList, "Medium").toStringAsFixed(1)} (${getQualityKgList(todayList, "Normal Cotton", "Medium").length})",
+                                        primerycolorshade,
+                                      ),
+                                      _tableCell(
+                                        "Low",
+                                        "${calculateQualityKg(todayList, "Low").toStringAsFixed(1)} (${getQualityKgList(todayList, "Normal Cotton", "Low").length})",
+                                        graydarkcolorshade,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                // Simplified count view
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceAround,
+                                  children: [
+                                    _bagCountChip(
+                                      "Hybrid",
+                                      getQualityKgList(
+                                        todayList,
+                                        "Hybrid Cotton",
+                                        null,
+                                      ).length,
+                                      bluecolor,
+                                    ),
+                                    _bagCountChip(
+                                      "High",
+                                      getQualityKgList(
+                                        todayList,
+                                        "Normal Cotton",
+                                        "High",
+                                      ).length,
+                                      primerycolor,
+                                    ),
+                                    _bagCountChip(
+                                      "Medium",
+                                      getQualityKgList(
+                                        todayList,
+                                        "Normal Cotton",
+                                        "Medium",
+                                      ).length,
+                                      primerycolorshade,
+                                    ),
+                                    _bagCountChip(
+                                      "Low",
+                                      getQualityKgList(
+                                        todayList,
+                                        "Normal Cotton",
+                                        "Low",
+                                      ).length,
+                                      graydarkcolorshade,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                      if (todayList.isNotEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    sectionTitle(context, "Load History"),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: bluecolor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
+                                      child: Text(
+                                        _todayDate(),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: blackcolor,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 15),
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (todayList.any(
+                                        (e) => e['cotton'] == "Hybrid Cotton",
+                                      ))
+                                        _verticalEntriesTable(
+                                          "Hybrid",
+                                          todayList
+                                              .where(
+                                                (e) =>
+                                                    e['cotton'] ==
+                                                    "Hybrid Cotton",
+                                              )
+                                              .toList(),
+                                          bluecolor,
+                                        ),
+                                      if (todayList.any(
                                         (e) =>
                                             e['cotton'] == "Normal Cotton" &&
                                             e['quality'] == "Low",
-                                      )
-                                      .toList()
-                                      .reversed
-                                      .toList(),
-                                  graydarkcolorshade,
-                                ),
-                              if (todayList.any(
-                                (e) =>
-                                    e['cotton'] == "Normal Cotton" &&
-                                    e['quality'] == "Medium",
-                              ))
-                                _verticalEntriesTable(
-                                  "Medium",
-                                  todayList
-                                      .where(
+                                      ))
+                                        _verticalEntriesTable(
+                                          "Low",
+                                          todayList
+                                              .where(
+                                                (e) =>
+                                                    e['cotton'] ==
+                                                        "Normal Cotton" &&
+                                                    e['quality'] == "Low",
+                                              )
+                                              .toList(),
+                                          graydarkcolorshade,
+                                        ),
+                                      if (todayList.any(
                                         (e) =>
                                             e['cotton'] == "Normal Cotton" &&
                                             e['quality'] == "Medium",
-                                      )
-                                      .toList()
-                                      .reversed
-                                      .toList(),
-                                  orangeColor,
-                                ),
-                              if (todayList.any(
-                                (e) =>
-                                    e['cotton'] == "Normal Cotton" &&
-                                    e['quality'] == "High",
-                              ))
-                                _verticalEntriesTable(
-                                  "High",
-                                  todayList
-                                      .where(
+                                      ))
+                                        _verticalEntriesTable(
+                                          "Medium",
+                                          todayList
+                                              .where(
+                                                (e) =>
+                                                    e['cotton'] ==
+                                                        "Normal Cotton" &&
+                                                    e['quality'] == "Medium",
+                                              )
+                                              .toList(),
+                                          orangeColor,
+                                        ),
+                                      if (todayList.any(
                                         (e) =>
                                             e['cotton'] == "Normal Cotton" &&
                                             e['quality'] == "High",
-                                      )
-                                      .toList()
-                                      .reversed
-                                      .toList(),
-                                  primerycolor,
+                                      ))
+                                        _verticalEntriesTable(
+                                          "High",
+                                          todayList
+                                              .where(
+                                                (e) =>
+                                                    e['cotton'] ==
+                                                        "Normal Cotton" &&
+                                                    e['quality'] == "High",
+                                              )
+                                              .toList(),
+                                          primerycolor,
+                                        ),
+                                    ],
+                                  ),
                                 ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      ],
-                    ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 60)),
+                    ],
                   ),
                 ),
-              const SliverToBoxAdapter(child: SizedBox(height: 60)),
-            ],
+              );
+            },
           ),
-        ),
+        ],
       ),
     );
   }

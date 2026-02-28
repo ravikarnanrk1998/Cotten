@@ -1,14 +1,17 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'commonstyle.dart';
+import 'firebase_service.dart';
 
 class LoadSummaryPage extends StatefulWidget {
   final double hybridKg;
   final double lowKg;
   final double mediumKg;
   final double highKg;
+  final List<double> hybridList;
+  final List<double> lowList;
+  final List<double> mediumList;
+  final List<double> highList;
 
   const LoadSummaryPage({
     super.key,
@@ -16,6 +19,10 @@ class LoadSummaryPage extends StatefulWidget {
     required this.lowKg,
     required this.mediumKg,
     required this.highKg,
+    required this.hybridList,
+    required this.lowList,
+    required this.mediumList,
+    required this.highList,
   });
 
   @override
@@ -74,55 +81,54 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
-
-    // 1. Prepare Summary Item
     final summaryRecord = {
       "name": nameController.text.trim(),
       "date": DateFormat('dd MMM, yyyy').format(DateTime.now()),
       "totalAmount": grandTotal,
+      "paid": 0.0,
       "categories": {
         "hybrid": {
           "gross_kg": widget.hybridKg,
           "deduction": double.tryParse(hybridDedController.text) ?? 0,
           "price": double.tryParse(hybridPriceController.text) ?? 0,
           "total": hybridTotal,
+          "kg_list": widget.hybridList.map((e) => e.toString()).toList(),
         },
         "low": {
           "gross_kg": widget.lowKg,
           "deduction": double.tryParse(lowDedController.text) ?? 0,
           "price": double.tryParse(lowPriceController.text) ?? 0,
           "total": lowTotal,
+          "kg_list": widget.lowList.map((e) => e.toString()).toList(),
         },
         "medium": {
           "gross_kg": widget.mediumKg,
           "deduction": double.tryParse(mediumDedController.text) ?? 0,
           "price": double.tryParse(mediumPriceController.text) ?? 0,
           "total": mediumTotal,
+          "kg_list": widget.mediumList.map((e) => e.toString()).toList(),
         },
         "high": {
           "gross_kg": widget.highKg,
           "deduction": double.tryParse(highDedController.text) ?? 0,
           "price": double.tryParse(highPriceController.text) ?? 0,
           "total": highTotal,
+          "kg_list": widget.highList.map((e) => e.toString()).toList(),
         },
       },
     };
 
-    // 2. Save to saved_summary_list
-    String? existingData = prefs.getString('saved_summary_list');
-    List<dynamic> summaryList = existingData != null
-        ? json.decode(existingData)
-        : [];
-    summaryList.insert(0, summaryRecord);
-    await prefs.setString('saved_summary_list', json.encode(summaryList));
-
-    // 3. Clear current history (todayList)
-    await prefs.remove('load_sent_list');
-
-    // 4. Return to previous page with success flag
-    if (mounted) {
-      Navigator.pop(context, true);
+    try {
+      await FirebaseService.addSummary(summaryRecord);
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -130,14 +136,16 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.warning, color: Colors.orange),
             SizedBox(width: 10),
             Text("Warning"),
           ],
         ),
-        content: Text("Are you sure you want to submit and clear history?"),
+        content: const Text(
+          "Are you sure you want to submit and clear history?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -165,132 +173,132 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
         backgroundColor: primerycolor,
         iconTheme: IconThemeData(color: whitecolor),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(15),
-        child: Column(
-          children: [
-            // Name Input
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: whitecolor,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(15),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: whitecolor,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 4,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: TextField(
-                controller: nameController,
-                style: inputtextstyle,
-                decoration: InputDecoration(
-                  labelText: "Party / Load Name",
-                  labelStyle: inputtextstyle,
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person, color: primerycolor),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Summary List
-            Container(
-              decoration: BoxDecoration(
-                color: whitecolor,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  _buildRow(
-                    "Hybrid",
-                    widget.hybridKg,
-                    hybridDedController,
-                    hybridPriceController,
-                    hybridTotal,
-                    bluecolor,
-                  ),
-                  _buildRow(
-                    "Normal (Low)",
-                    widget.lowKg,
-                    lowDedController,
-                    lowPriceController,
-                    lowTotal,
-                    graydarkcolorshade,
-                  ),
-                  _buildRow(
-                    "Normal (Med)",
-                    widget.mediumKg,
-                    mediumDedController,
-                    mediumPriceController,
-                    mediumTotal,
-                    Colors.orange.shade800,
-                  ),
-                  _buildRow(
-                    "Normal (High)",
-                    widget.highKg,
-                    highDedController,
-                    highPriceController,
-                    highTotal,
-                    primerycolor,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 25),
-
-            // Grand Total
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: primerycolor,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text("Grand Total Amount", style: appbarstyle),
-                  Text(
-                    "₹${NumberFormat('#,##,###.##').format(grandTotal)}",
-                    style: appbarstyle.copyWith(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                  child: TextField(
+                    controller: nameController,
+                    style: inputtextstyle,
+                    decoration: InputDecoration(
+                      labelText: "Party / Load Name",
+                      labelStyle: inputtextstyle,
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person, color: primerycolor),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 30),
-
-            // Submit Button
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: redcolor,
-                  shape: RoundedRectangleBorder(
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  decoration: BoxDecoration(
+                    color: whitecolor,
                     borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      _buildHeader(),
+                      _buildRow(
+                        "Hybrid",
+                        widget.hybridKg,
+                        hybridDedController,
+                        hybridPriceController,
+                        hybridTotal,
+                        bluecolor,
+                      ),
+                      _buildRow(
+                        "Normal (Low)",
+                        widget.lowKg,
+                        lowDedController,
+                        lowPriceController,
+                        lowTotal,
+                        graydarkcolorshade,
+                      ),
+                      _buildRow(
+                        "Normal (Med)",
+                        widget.mediumKg,
+                        mediumDedController,
+                        mediumPriceController,
+                        mediumTotal,
+                        Colors.orange.shade800,
+                      ),
+                      _buildRow(
+                        "Normal (High)",
+                        widget.highKg,
+                        highDedController,
+                        highPriceController,
+                        highTotal,
+                        primerycolor,
+                      ),
+                    ],
                   ),
                 ),
-                onPressed: _showSubmitDialog,
-                child: Text(
-                  "SUBMIT",
-                  style: appbarstyle.copyWith(fontSize: 18, letterSpacing: 1.2),
+                const SizedBox(height: 25),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: primerycolor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Grand Total Amount", style: appbarstyle),
+                      Text(
+                        "₹${NumberFormat('#,##,###.##').format(grandTotal)}",
+                        style: appbarstyle.copyWith(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 30),
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: redcolor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: _showSubmitDialog,
+                    child: Text(
+                      "SUBMIT",
+                      style: appbarstyle.copyWith(
+                        fontSize: 18,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
             ),
-            const SizedBox(height: 40),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -376,8 +384,7 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
     double total,
     Color color,
   ) {
-    if (kg <= 0) return SizedBox.shrink();
-
+    if (kg <= 0) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
       decoration: const BoxDecoration(
@@ -397,7 +404,7 @@ class _LoadSummaryPageState extends State<LoadSummaryPage> {
             child: Center(
               child: Text(
                 kg.toStringAsFixed(1),
-                style: TextStyle(fontWeight: FontWeight.w600),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ),

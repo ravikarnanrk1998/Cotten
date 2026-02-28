@@ -1,9 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'commonstyle.dart';
+import 'firebase_service.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -13,134 +11,52 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  double totalAmount = 0;
-  double hybridHigh = 0;
-  double hybridMedium = 0;
-  double hybridLow = 0;
-  double hybridTotal = 0;
-
-  double normalHigh = 0;
-  double normalMedium = 0;
-  double normalLow = 0;
-  double normalTotal = 0;
-
-  // 🔹 CURRENT STATUS VARIABLES
-  double curTotalAmount = 0;
-  double curHybridHigh = 0;
-  double curHybridMedium = 0;
-  double curHybridLow = 0;
-  double curHybridTotal = 0;
-  double curNormalHigh = 0;
-  double curNormalMedium = 0;
-  double curNormalLow = 0;
-  double curNormalTotal = 0;
-
-  List<Map<String, dynamic>> savedSummaries = [];
-  final Map<int, TextEditingController> paymentControllers = {};
-
-  @override
-  void initState() {
-    super.initState();
-    loadLocalData();
-  }
-
-  // 🔹 LOAD DATA FROM LOCAL STORAGE
-  Future<void> loadLocalData() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    // Fetch Status data
-    final data = prefs.getString('today_load_list');
-    final savedData = prefs.getString('saved_summary_list');
-
-    if (data != null) {
-      final List<Map<String, dynamic>> loadedList =
-          List<Map<String, dynamic>>.from(json.decode(data));
-
-      final status = calculateStatus(loadedList);
-
-      setState(() {
-        hybridHigh = status["hybridHigh"];
-        hybridMedium = status["hybridMedium"];
-        hybridLow = status["hybridLow"];
-        hybridTotal = status["hybridTotal"];
-
-        normalHigh = status["normalHigh"];
-        normalMedium = status["normalMedium"];
-        normalLow = status["normalLow"];
-        normalTotal = status["normalTotal"];
-
-        totalAmount = status["totalAmount"];
-      });
-    }
-
-    // Fetch Current Status tracker
-    final curStatusData = prefs.getString('current_status_data');
-    if (curStatusData != null) {
-      final Map<String, dynamic> curStatus = json.decode(curStatusData);
-      setState(() {
-        curTotalAmount = (curStatus["totalAmount"] ?? 0).toDouble();
-        curHybridHigh = (curStatus["hybridHigh"] ?? 0).toDouble();
-        curHybridMedium = (curStatus["hybridMedium"] ?? 0).toDouble();
-        curHybridLow = (curStatus["hybridLow"] ?? 0).toDouble();
-        curHybridTotal = (curStatus["hybridTotal"] ?? 0).toDouble();
-        curNormalHigh = (curStatus["normalHigh"] ?? 0).toDouble();
-        curNormalMedium = (curStatus["normalMedium"] ?? 0).toDouble();
-        curNormalLow = (curStatus["normalLow"] ?? 0).toDouble();
-        curNormalTotal = (curStatus["normalTotal"] ?? 0).toDouble();
-      });
-    }
-
-    // Fetch Saved Summaries
-    if (savedData != null) {
-      setState(() {
-        savedSummaries = List<Map<String, dynamic>>.from(
-          json.decode(savedData),
-        );
-      });
-    }
-  }
+  final Map<String, TextEditingController> paymentControllers = {};
 
   Future<void> resetCurrentStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      curTotalAmount = 0;
-      curHybridHigh = 0;
-      curHybridMedium = 0;
-      curHybridLow = 0;
-      curHybridTotal = 0;
-      curNormalHigh = 0;
-      curNormalMedium = 0;
-      curNormalLow = 0;
-      curNormalTotal = 0;
-    });
-    await prefs.remove('current_status_data');
+    try {
+      await FirebaseService.resetStatus();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
-  Future<void> deleteSummary(int index) async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      savedSummaries.removeAt(index);
-    });
-    await prefs.setString('saved_summary_list', json.encode(savedSummaries));
+  Future<void> deleteSummary(String id) async {
+    try {
+      await FirebaseService.deleteSummary(id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
-  Future<void> saveUpdatedSummaries(List<Map<String, dynamic>> list) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('saved_summary_list', json.encode(list));
-  }
-
-  void addPayment(int index, String amountStr) async {
+  void addPayment(
+    String id,
+    Map<String, dynamic> item,
+    String amountStr,
+  ) async {
     double amount = double.tryParse(amountStr) ?? 0;
     if (amount <= 0) return;
 
-    setState(() {
-      final item = savedSummaries[index];
-      double currentPaid = (item['paid'] ?? 0).toDouble();
-      item['paid'] = currentPaid + amount;
-      paymentControllers[index]?.clear();
-    });
-
-    await saveUpdatedSummaries(savedSummaries);
+    try {
+      double currentPaid =
+          double.tryParse(item['paid']?.toString() ?? "0") ?? 0;
+      await FirebaseService.updateSummary(id, {'paid': currentPaid + amount});
+      paymentControllers[id]?.clear();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Map<String, dynamic> calculateStatus(List<Map<String, dynamic>> list) {
@@ -225,105 +141,139 @@ class _DashboardState extends State<Dashboard> {
             Text("Santhi Cotton Shop", style: appbardashbordstyle),
           ],
         ),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Icon(Icons.print_rounded, color: Colors.white),
+        // actions: const [
+        //   Padding(
+        //     padding: EdgeInsets.only(right: 16),
+        //     child: Icon(Icons.print_rounded, color: Colors.white),
+        //   ),
+        // ],
+      ),
+      body: Stack(
+        children: [
+          Container(
+            height: MediaQuery.of(context).size.height,
+            color: graycolorshade,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // 1. Today Status (Stream from loads)
+                  StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: FirebaseService.getLoads(),
+                    builder: (context, snapshot) {
+                      final data = snapshot.data ?? [];
+                      final status = calculateStatus(data);
+                      return _singleStatusCard(
+                        title: sectionTitle(context, "Today Status"),
+                        totalAmount: status["totalAmount"].toStringAsFixed(0),
+                        hybridHigh:
+                            "${status["hybridHigh"].toStringAsFixed(0)} Kg",
+                        hybridMedium:
+                            "${status["hybridMedium"].toStringAsFixed(0)} Kg",
+                        hybridLow:
+                            "${status["hybridLow"].toStringAsFixed(0)} Kg",
+                        hybridTotal:
+                            "${status["hybridTotal"].toStringAsFixed(0)} Kg",
+                        normalHigh:
+                            "${status["normalHigh"].toStringAsFixed(0)} Kg",
+                        normalMedium:
+                            "${status["normalMedium"].toStringAsFixed(0)} Kg",
+                        normalLow:
+                            "${status["normalLow"].toStringAsFixed(0)} Kg",
+                        normalTotal:
+                            "${status["normalTotal"].toStringAsFixed(0)} Kg",
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // 2. Current Status (Stream from status doc)
+                  StreamBuilder<Map<String, dynamic>?>(
+                    stream: FirebaseService.getStatus(),
+                    builder: (context, snapshot) {
+                      final curStatus = snapshot.data ?? {};
+                      return _singleStatusCard(
+                        title: sectionTitle(context, "Current Status"),
+                        totalAmount: (curStatus["totalAmount"] ?? 0)
+                            .toStringAsFixed(0),
+                        hybridHigh:
+                            "${(curStatus["hybridHigh"] ?? 0).toStringAsFixed(0)} Kg",
+                        hybridMedium:
+                            "${(curStatus["hybridMedium"] ?? 0).toStringAsFixed(0)} Kg",
+                        hybridLow:
+                            "${(curStatus["hybridLow"] ?? 0).toStringAsFixed(0)} Kg",
+                        hybridTotal:
+                            "${(curStatus["hybridTotal"] ?? 0).toStringAsFixed(0)} Kg",
+                        normalHigh:
+                            "${(curStatus["normalHigh"] ?? 0).toStringAsFixed(0)} Kg",
+                        normalMedium:
+                            "${(curStatus["normalMedium"] ?? 0).toStringAsFixed(0)} Kg",
+                        normalLow:
+                            "${(curStatus["normalLow"] ?? 0).toStringAsFixed(0)} Kg",
+                        normalTotal:
+                            "${(curStatus["normalTotal"] ?? 0).toStringAsFixed(0)} Kg",
+                        onReset: resetCurrentStatus,
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+                  sectionTitle(context, "Total Load Status"),
+                  const SizedBox(height: 10),
+
+                  // 3. Saved Summaries (Stream from summaries)
+                  StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: FirebaseService.getSummaries(),
+                    builder: (context, snapshot) {
+                      final savedSummaries = snapshot.data ?? [];
+                      if (savedSummaries.isEmpty) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(vertical: 30),
+                          child: Center(
+                            child: Text(
+                              "No saved summaries found.",
+                              style: TextStyle(
+                                color: graydarkcolorshade,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final activeSummaries = savedSummaries.where((item) {
+                        double total = (item['totalAmount'] ?? 0).toDouble();
+                        double paid = (item['paid'] ?? 0).toDouble();
+                        return (total - paid) > 0;
+                      }).toList();
+
+                      return Column(
+                        children: activeSummaries.map((item) {
+                          final id = item['id'] as String;
+                          return _summaryRow(id, item);
+                        }).toList(),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 50),
+                ],
+              ),
+            ),
           ),
         ],
       ),
-
-      body: Container(
-        height: MediaQuery.of(context).size.height,
-        color: graycolorshade,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              _singleStatusCard(
-                title: sectionTitle(context, "Today Status"),
-                totalAmount: totalAmount.toStringAsFixed(0),
-
-                hybridHigh: "${hybridHigh.toStringAsFixed(0)} Kg",
-                hybridMedium: "${hybridMedium.toStringAsFixed(0)} Kg",
-                hybridLow: "${hybridLow.toStringAsFixed(0)} Kg",
-                hybridTotal: "${hybridTotal.toStringAsFixed(0)} Kg",
-
-                normalHigh: "${normalHigh.toStringAsFixed(0)} Kg",
-                normalMedium: "${normalMedium.toStringAsFixed(0)} Kg",
-                normalLow: "${normalLow.toStringAsFixed(0)} Kg",
-                normalTotal: "${normalTotal.toStringAsFixed(0)} Kg",
-              ),
-
-              const SizedBox(height: 12),
-
-              _singleStatusCard(
-                title: sectionTitle(context, "Current Status"),
-                totalAmount: curTotalAmount.toStringAsFixed(0),
-                hybridHigh: "${curHybridHigh.toStringAsFixed(0)} Kg",
-                hybridMedium: "${curHybridMedium.toStringAsFixed(0)} Kg",
-                hybridLow: "${curHybridLow.toStringAsFixed(0)} Kg",
-                hybridTotal: "${curHybridTotal.toStringAsFixed(0)} Kg",
-                normalHigh: "${curNormalHigh.toStringAsFixed(0)} Kg",
-                normalMedium: "${curNormalMedium.toStringAsFixed(0)} Kg",
-                normalLow: "${curNormalLow.toStringAsFixed(0)} Kg",
-                normalTotal: "${curNormalTotal.toStringAsFixed(0)} Kg",
-                onReset: resetCurrentStatus,
-              ),
-
-              const SizedBox(height: 24),
-
-              sectionTitle(context, "Total Load Status"),
-              const SizedBox(height: 10),
-
-              if (savedSummaries.isEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 30),
-                  child: Center(
-                    child: Text(
-                      "No saved summaries found.",
-                      style: TextStyle(
-                        color: graydarkcolorshade,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                )
-              else
-                ...savedSummaries
-                    .asMap()
-                    .entries
-                    .where((entry) {
-                      final item = entry.value;
-                      double totalAmount = (item['totalAmount'] ?? 0)
-                          .toDouble();
-                      double paidAmount = (item['paid'] ?? 0).toDouble();
-                      return (totalAmount - paidAmount) > 0;
-                    })
-                    .map((entry) {
-                      return _summaryRow(entry.key, entry.value);
-                    }),
-              const SizedBox(height: 50),
-            ],
-          ),
-        ),
-      ),
-
-      /// BOTTOM NAVIGATION
     );
   }
 
   /// ===================== WIDGETS =====================
   Widget _singleStatusCard({
     required Widget title,
-    // Hybrid
     required String totalAmount,
     required String hybridHigh,
     required String hybridMedium,
     required String hybridLow,
     required String hybridTotal,
-
-    // Normal
     required String normalHigh,
     required String normalMedium,
     required String normalLow,
@@ -347,7 +297,6 @@ class _DashboardState extends State<Dashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// HEADER
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -373,8 +322,6 @@ class _DashboardState extends State<Dashboard> {
               ),
             ],
           ),
-
-          /// COLUMN TITLES
           Row(
             children: const [
               SizedBox(width: 90),
@@ -395,34 +342,25 @@ class _DashboardState extends State<Dashboard> {
             ],
           ),
           const Divider(height: 5),
-
-          /// HIGH
           _statusRow(
             label: "High",
             hybridValue: hybridHigh,
             normalValue: normalHigh,
             color: Colors.green,
           ),
-
-          /// MEDIUM
           _statusRow(
             label: "Medium",
             hybridValue: hybridMedium,
             normalValue: normalMedium,
             color: Colors.orange,
           ),
-
-          /// LOW
           _statusRow(
             label: "Low",
             hybridValue: hybridLow,
             normalValue: normalLow,
             color: Colors.blueGrey,
           ),
-
           const Divider(height: 5),
-
-          /// TOTAL
           _statusRow(
             label: "Total",
             hybridValue: hybridTotal,
@@ -480,9 +418,9 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  Widget _summaryRow(int index, Map<String, dynamic> item) {
-    if (!paymentControllers.containsKey(index)) {
-      paymentControllers[index] = TextEditingController();
+  Widget _summaryRow(String id, Map<String, dynamic> item) {
+    if (!paymentControllers.containsKey(id)) {
+      paymentControllers[id] = TextEditingController();
     }
     double totalAmount = (item['totalAmount'] ?? 0).toDouble();
     double paidAmount = (item['paid'] ?? 0).toDouble();
@@ -524,8 +462,6 @@ class _DashboardState extends State<Dashboard> {
             ],
           ),
           const Divider(height: 20, thickness: 1),
-
-          // Details Table Header
           Row(
             children: [
               Expanded(
@@ -582,8 +518,6 @@ class _DashboardState extends State<Dashboard> {
             ],
           ),
           const SizedBox(height: 5),
-
-          // Render each category breakdown
           ...categories.entries
               .where((e) {
                 var val = e.value;
@@ -699,10 +633,7 @@ class _DashboardState extends State<Dashboard> {
                 );
               })
               .toList(),
-
           const Divider(height: 30),
-
-          // Payment and Balance Section
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -711,16 +642,13 @@ class _DashboardState extends State<Dashboard> {
               _amountColumn("Balance", balanceAmount, Colors.red, isBold: true),
             ],
           ),
-
           const SizedBox(height: 20),
-
-          // Add Payment Input (Hide if balance is 0)
           if (balanceAmount > 0)
             Row(
               children: [
                 Expanded(
                   child: TextField(
-                    controller: paymentControllers[index],
+                    controller: paymentControllers[id],
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: "Add Payment (₹)",
@@ -742,7 +670,7 @@ class _DashboardState extends State<Dashboard> {
                     ),
                   ),
                   onPressed: () =>
-                      addPayment(index, paymentControllers[index]!.text),
+                      addPayment(id, item, paymentControllers[id]!.text),
                   child: const Text(
                     "ADD",
                     style: TextStyle(
@@ -750,6 +678,10 @@ class _DashboardState extends State<Dashboard> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => deleteSummary(id),
                 ),
               ],
             )

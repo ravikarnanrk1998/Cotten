@@ -29,17 +29,17 @@ class _SplashPageState extends State<SplashPage> {
         children: [
           Positioned.fill(
             child: Image.asset(
-               "assets/image/splashscreen.jpg",
+              "assets/image/splashscreen.jpg",
               fit: BoxFit.cover,
             ),
           ),
           Align(
             alignment: Alignment.topCenter,
             child: Padding(
-              padding: const EdgeInsets.only(top:150),
+              padding: const EdgeInsets.only(top: 150),
               child: Text(
                 'Santhi Cotton',
-                style:  GoogleFonts.roboto(
+                style: GoogleFonts.roboto(
                   color: Colors.grey.shade300,
                   fontSize: 40,
                   fontWeight: FontWeight.bold,

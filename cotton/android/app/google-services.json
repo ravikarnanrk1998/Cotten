@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "311183649546",
+    "project_id": "santhi-cotton",
+    "storage_bucket": "santhi-cotton.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:311183649546:android:8922246397c066870fe8f3",
+        "android_client_info": {
+          "package_name": "com.example.cotton"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHObiPPg5KCrh248t6uz33Bi-UwsGP5Ho"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

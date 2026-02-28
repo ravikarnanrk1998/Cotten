@@ -1,3 +1,7 @@
+plugins {
+    id("com.google.gms.google-services") version "4.4.4" apply false
+}
+
 allprojects {
     repositories {
         google()
@@ -14,6 +18,24 @@ rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
+
+    afterEvaluate {
+        val android = project.extensions.findByName("android")
+        if (android is com.android.build.gradle.BaseExtension) {
+            if (android.namespace == null) {
+                val manifestFile = project.file("src/main/AndroidManifest.xml")
+                if (manifestFile.exists()) {
+                    val manifestContent = manifestFile.readText()
+                    val packageRegex = Regex("package\\s*=\\s*\"([^\"]+)\"")
+                    val match = packageRegex.find(manifestContent)
+                    if (match != null) {
+                        android.namespace = match.groupValues[1]
+                    }
+                }
+            }
+            android.compileSdkVersion(34)
+        }
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")
