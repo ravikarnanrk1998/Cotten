@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'commonstyle.dart';
 import 'firebase_service.dart';
 
@@ -12,14 +13,56 @@ class Dashboard extends StatefulWidget {
 
 class _DashboardState extends State<Dashboard> {
   final Map<String, TextEditingController> paymentControllers = {};
+  int _resetTimestamp = 0;
 
-  Future<void> resetCurrentStatus() async {
-    try {
-      await FirebaseService.resetStatus();
-    } catch (e) {
+  @override
+  void initState() {
+    super.initState();
+    _loadResetTimestamp();
+  }
+
+  Future<void> _loadResetTimestamp() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _resetTimestamp = prefs.getInt('dashboard_reset_time') ?? 0;
+    });
+  }
+
+  Future<void> handleFrontendReset() async {
+    // confirmation dialog
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Reset Current Status?"),
+        content: const Text(
+          "This will reset the displayed values to zero. It will NOT delete data from the database.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Reset", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await prefs.setInt('dashboard_reset_time', now);
+      setState(() {
+        _resetTimestamp = now;
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text("Status reset. Future entries will show here."),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     }
@@ -157,14 +200,20 @@ class _DashboardState extends State<Dashboard> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // 1. Today Status (Stream from loads)
+                  // 1. Current Status (Stream from loads, filtered by frontend reset time)
                   StreamBuilder<List<Map<String, dynamic>>>(
                     stream: FirebaseService.getLoads(),
                     builder: (context, snapshot) {
                       final data = snapshot.data ?? [];
-                      final status = calculateStatus(data);
+                      // Filter by frontend reset timestamp
+                      final filteredData = data.where((item) {
+                        final timestamp = item['timestamp'] as int? ?? 0;
+                        return timestamp >= _resetTimestamp;
+                      }).toList();
+
+                      final status = calculateStatus(filteredData);
                       return _singleStatusCard(
-                        title: sectionTitle(context, "Today Status"),
+                        title: sectionTitle(context, "Current Status"),
                         totalAmount: status["totalAmount"].toStringAsFixed(0),
                         hybridHigh:
                             "${status["hybridHigh"].toStringAsFixed(0)} Kg",
@@ -182,38 +231,7 @@ class _DashboardState extends State<Dashboard> {
                             "${status["normalLow"].toStringAsFixed(0)} Kg",
                         normalTotal:
                             "${status["normalTotal"].toStringAsFixed(0)} Kg",
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // 2. Current Status (Stream from status doc)
-                  StreamBuilder<Map<String, dynamic>?>(
-                    stream: FirebaseService.getStatus(),
-                    builder: (context, snapshot) {
-                      final curStatus = snapshot.data ?? {};
-                      return _singleStatusCard(
-                        title: sectionTitle(context, "Current Status"),
-                        totalAmount: (curStatus["totalAmount"] ?? 0)
-                            .toStringAsFixed(0),
-                        hybridHigh:
-                            "${(curStatus["hybridHigh"] ?? 0).toStringAsFixed(0)} Kg",
-                        hybridMedium:
-                            "${(curStatus["hybridMedium"] ?? 0).toStringAsFixed(0)} Kg",
-                        hybridLow:
-                            "${(curStatus["hybridLow"] ?? 0).toStringAsFixed(0)} Kg",
-                        hybridTotal:
-                            "${(curStatus["hybridTotal"] ?? 0).toStringAsFixed(0)} Kg",
-                        normalHigh:
-                            "${(curStatus["normalHigh"] ?? 0).toStringAsFixed(0)} Kg",
-                        normalMedium:
-                            "${(curStatus["normalMedium"] ?? 0).toStringAsFixed(0)} Kg",
-                        normalLow:
-                            "${(curStatus["normalLow"] ?? 0).toStringAsFixed(0)} Kg",
-                        normalTotal:
-                            "${(curStatus["normalTotal"] ?? 0).toStringAsFixed(0)} Kg",
-                        onReset: resetCurrentStatus,
+                        onReset: handleFrontendReset,
                       );
                     },
                   ),

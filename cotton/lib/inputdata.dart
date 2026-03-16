@@ -186,7 +186,7 @@ class _InputDataState extends State<InputData> {
           'Shop:Santhi Cotton Shop\nDate:${item['time']}\nTotal:${amount.toStringAsFixed(2)}';
       bytes += generator.qrcode(qrData, align: PosAlign.center);
       bytes += generator.text(
-        'Thank you for come!',
+        'Thank you for coming!',
         styles: const PosStyles(align: PosAlign.center),
       );
       bytes += generator.feed(2);
@@ -983,6 +983,13 @@ class _InputDataState extends State<InputData> {
 
                               return Card(
                                 child: ListTile(
+                                  leading: IconButton(
+                                    icon: Icon(
+                                      Icons.print,
+                                      color: primerycolor,
+                                    ),
+                                    onPressed: () => _showPrintDialog(item),
+                                  ),
                                   title: Text(
                                     "${item['cotton']} - ${item['quality']}",
                                     style: TextStyle(
@@ -1030,25 +1037,44 @@ class _InputDataState extends State<InputData> {
                                       ],
                                     ),
                                   ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.print,
-                                          color: primerycolor,
-                                        ),
-                                        onPressed: () => _showPrintDialog(item),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
-                                        ),
-                                        onPressed: () =>
-                                            deleteEntry(item['id']),
-                                      ),
-                                    ],
+                                  trailing: IconButton(
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: const Text("Delete Entry"),
+                                            content: const Text(
+                                              "Are you sure you want to delete this entry?",
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () {
+                                                  Navigator.of(context).pop();
+                                                },
+                                                child: const Text("Close"),
+                                              ),
+                                              TextButton(
+                                                onPressed: () {
+                                                  Navigator.of(context).pop();
+                                                  deleteEntry(item['id']);
+                                                },
+                                                child: const Text(
+                                                  "OK",
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    },
                                   ),
                                 ),
                               );
