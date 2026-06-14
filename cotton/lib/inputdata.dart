@@ -114,6 +114,7 @@ class _InputDataState extends State<InputData> {
       List<int> bytes = [];
 
       bytes += generator.setGlobalCodeTable('CP1252');
+      bytes += generator.text('--------------------------------');
       bytes += generator.text(
         'Santhi Cotton Shop',
         styles: const PosStyles(
@@ -124,12 +125,16 @@ class _InputDataState extends State<InputData> {
         ),
       );
       bytes += generator.text(
-        'Mobile No: 9578956063',
-        styles: const PosStyles(align: PosAlign.center),
+        'No: 9578956063',
+        styles: const PosStyles(
+          align: PosAlign.center,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ),
       );
       bytes += generator.text('--------------------------------');
 
-      bytes += generator.text('Date: ${item['time']}');
+      bytes += generator.text('Date: ${item['time'] ?? ''}');
       bytes += generator.text('Type: ${item['cotton']}');
       bytes += generator.text('Qual: ${item['quality']}');
       if (item['kg_list'] != null && (item['kg_list'] as List).isNotEmpty) {
@@ -151,39 +156,76 @@ class _InputDataState extends State<InputData> {
         ),
         PosColumn(
           text: 'RATE',
-          width: 4,
+          width: 2,
           styles: const PosStyles(bold: true, align: PosAlign.center),
         ),
         PosColumn(
           text: 'TOTAL',
-          width: 4,
+          width: 6,
           styles: const PosStyles(bold: true, align: PosAlign.right),
         ),
       ]);
 
       bytes += generator.row([
-        PosColumn(text: '${kg.toStringAsFixed(2)} Kg', width: 4),
         PosColumn(
-          text: '${price.toStringAsFixed(0)}',
+          text: '${kg.toStringAsFixed(2)} Kg',
           width: 4,
-          styles: const PosStyles(align: PosAlign.center),
+          styles: const PosStyles(
+            align: PosAlign.left,
+            bold: true,
+            height: PosTextSize.size2,
+            width: PosTextSize.size1,
+          ),
         ),
         PosColumn(
-          text: '${amount.toStringAsFixed(2)}',
-          width: 4,
-          styles: const PosStyles(align: PosAlign.right),
+          text: '${price.toStringAsFixed(0)}',
+          width: 2,
+          styles: const PosStyles(
+            align: PosAlign.center,
+            bold: true,
+            height: PosTextSize.size2,
+            width: PosTextSize.size1,
+          ),
+        ),
+        PosColumn(
+          text: '${amount.toStringAsFixed(0)}',
+          width: 6,
+          styles: const PosStyles(
+            align: PosAlign.right,
+            bold: true,
+            height: PosTextSize.size2,
+            width: PosTextSize.size1,
+          ),
         ),
       ]);
 
       bytes += generator.text('--------------------------------');
-      bytes += generator.text(
-        'TOTAL: Rs. ${amount.toStringAsFixed(2)}',
-        styles: const PosStyles(bold: true, align: PosAlign.right),
-      );
-      bytes += generator.text('--------------------------------');
+      bytes += generator.row([
+        PosColumn(
+          text: 'TOTAL: Rs.',
+          width: 8,
+          styles: const PosStyles(
+            bold: true,
+            align: PosAlign.left,
+            height: PosTextSize.size2,
+            width: PosTextSize.size2,
+          ),
+        ),
 
+        PosColumn(
+          text: '${amount.toStringAsFixed(0)}',
+          width: 4,
+          styles: const PosStyles(
+            bold: true,
+            align: PosAlign.right,
+            height: PosTextSize.size2,
+            width: PosTextSize.size2,
+          ),
+        ),
+      ]);
+      bytes += generator.text('--------------------------------');
       final qrData =
-          'Shop:Santhi Cotton Shop\nDate:${item['time']}\nTotal:${amount.toStringAsFixed(2)}';
+          'Shop:Santhi Cotton Shop\nDate:${item['time']}\nTotal:${amount.toStringAsFixed(0)}';
       bytes += generator.qrcode(qrData, align: PosAlign.center);
       bytes += generator.text(
         'Thank you for coming!',
@@ -192,7 +234,6 @@ class _InputDataState extends State<InputData> {
       bytes += generator.feed(2);
       bytes += generator.cut();
 
-      // BLE Send logic - Optimized for stability
       await printer.requestMtu(512);
       final services = await printer.discoverServices();
       BluetoothCharacteristic? printChar;
@@ -200,7 +241,6 @@ class _InputDataState extends State<InputData> {
       outer:
       for (final service in services) {
         for (final char in service.characteristics) {
-          // Look for either write property
           if (char.properties.write || char.properties.writeWithoutResponse) {
             printChar = char;
             break outer;
@@ -212,28 +252,19 @@ class _InputDataState extends State<InputData> {
         throw Exception("No writable characteristic found.");
       }
 
-      // Send bytes in smaller chunks to avoid buffer overflow
-      // Even if MTU is 512, many printers prefer smaller slices
       const chunkSize = 120;
       for (int i = 0; i < bytes.length; i += chunkSize) {
         final end = (i + chunkSize < bytes.length)
             ? i + chunkSize
             : bytes.length;
-
-        // Use 'write' (with response) for reliability if supported,
-        // else fallback to writeWithoutResponse.
         final bool useWithoutResponse = !printChar.properties.write;
-
         await printChar.write(
           bytes.sublist(i, end),
           withoutResponse: useWithoutResponse,
         );
-
-        // Give the printer a moment to process the buffer
         await Future.delayed(const Duration(milliseconds: 50));
       }
 
-      // Small delay before disconnecting to ensure last chunk is processed
       await Future.delayed(const Duration(milliseconds: 500));
       await printer.disconnect();
 

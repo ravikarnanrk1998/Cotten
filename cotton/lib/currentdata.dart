@@ -91,6 +91,7 @@ class _CurrectDataState extends State<CurrectData> {
       List<int> bytes = [];
 
       bytes += generator.setGlobalCodeTable('CP1252');
+      bytes += generator.text('--------------------------------');
       bytes += generator.text(
         'Santhi Cotton Shop',
         styles: const PosStyles(
@@ -101,8 +102,12 @@ class _CurrectDataState extends State<CurrectData> {
         ),
       );
       bytes += generator.text(
-        'Mobile No: 9578956063',
-        styles: const PosStyles(align: PosAlign.center),
+        'No: 9578956063',
+        styles: const PosStyles(
+          align: PosAlign.center,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ),
       );
       bytes += generator.text('--------------------------------');
 
@@ -128,39 +133,76 @@ class _CurrectDataState extends State<CurrectData> {
         ),
         PosColumn(
           text: 'RATE',
-          width: 4,
+          width: 2,
           styles: const PosStyles(bold: true, align: PosAlign.center),
         ),
         PosColumn(
           text: 'TOTAL',
-          width: 4,
+          width: 6,
           styles: const PosStyles(bold: true, align: PosAlign.right),
         ),
       ]);
 
       bytes += generator.row([
-        PosColumn(text: '${kg.toStringAsFixed(2)} Kg', width: 4),
         PosColumn(
-          text: '${price.toStringAsFixed(0)}',
+          text: '${kg.toStringAsFixed(2)} Kg',
           width: 4,
-          styles: const PosStyles(align: PosAlign.center),
+          styles: const PosStyles(
+            align: PosAlign.left,
+            bold: true,
+            height: PosTextSize.size2,
+            width: PosTextSize.size1,
+          ),
         ),
         PosColumn(
-          text: '${amount.toStringAsFixed(2)}',
-          width: 4,
-          styles: const PosStyles(align: PosAlign.right),
+          text: '${price.toStringAsFixed(0)}',
+          width: 2,
+          styles: const PosStyles(
+            align: PosAlign.center,
+            bold: true,
+            height: PosTextSize.size2,
+            width: PosTextSize.size1,
+          ),
+        ),
+        PosColumn(
+          text: '${amount.toStringAsFixed(0)}',
+          width: 6,
+          styles: const PosStyles(
+            align: PosAlign.right,
+            bold: true,
+            height: PosTextSize.size2,
+            width: PosTextSize.size1,
+          ),
         ),
       ]);
 
       bytes += generator.text('--------------------------------');
-      bytes += generator.text(
-        'TOTAL: Rs. ${amount.toStringAsFixed(2)}',
-        styles: const PosStyles(bold: true, align: PosAlign.right),
-      );
-      bytes += generator.text('--------------------------------');
+      bytes += generator.row([
+        PosColumn(
+          text: 'TOTAL: Rs.',
+          width: 8,
+          styles: const PosStyles(
+            bold: true,
+            align: PosAlign.left,
+            height: PosTextSize.size2,
+            width: PosTextSize.size2,
+          ),
+        ),
 
+        PosColumn(
+          text: '${amount.toStringAsFixed(0)}',
+          width: 4,
+          styles: const PosStyles(
+            bold: true,
+            align: PosAlign.right,
+            height: PosTextSize.size2,
+            width: PosTextSize.size2,
+          ),
+        ),
+      ]);
+      bytes += generator.text('--------------------------------');
       final qrData =
-          'Shop:Santhi Cotton Shop\nDate:${item['time']}\nTotal:${amount.toStringAsFixed(2)}';
+          'Shop:Santhi Cotton Shop\nDate:${item['time']}\nTotal:${amount.toStringAsFixed(0)}';
       bytes += generator.qrcode(qrData, align: PosAlign.center);
       bytes += generator.text(
         'Thank you for coming!',

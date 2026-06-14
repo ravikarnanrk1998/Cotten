@@ -351,7 +351,11 @@ class _PreviewsDataState extends State<PreviewsData> {
         bytes.addAll(
           generator.text(
             'Mobile No: 9578956063',
-            styles: const PosStyles(align: PosAlign.center),
+            styles: const PosStyles(
+              align: PosAlign.center,
+              height: PosTextSize.size2,
+              width: PosTextSize.size2,
+            ),
           ),
         );
         bytes.addAll(generator.text('--------------------------------'));
@@ -472,7 +476,12 @@ class _PreviewsDataState extends State<PreviewsData> {
         bytes.addAll(
           generator.text(
             'GRAND TOTAL: Rs. ${totalAmount.toStringAsFixed(2)}',
-            styles: const PosStyles(bold: true, align: PosAlign.right),
+            styles: const PosStyles(
+              bold: true,
+              align: PosAlign.right,
+              height: PosTextSize.size2,
+              width: PosTextSize.size2,
+            ),
           ),
         );
         bytes.addAll(
@@ -484,7 +493,12 @@ class _PreviewsDataState extends State<PreviewsData> {
         bytes.addAll(
           generator.text(
             'BALANCE: Rs. ${balanceAmount.toStringAsFixed(2)}',
-            styles: const PosStyles(bold: true, align: PosAlign.right),
+            styles: const PosStyles(
+              bold: true,
+              align: PosAlign.right,
+              height: PosTextSize.size2,
+              width: PosTextSize.size2,
+            ),
           ),
         );
 
